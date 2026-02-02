@@ -239,13 +239,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           br: true,   // bottom right corner
           mtr: true,  // rotation control
         });
-        // Set diagonal cursors for corner controls
-        if (text.controls) {
-          if (text.controls.tl) text.controls.tl.cursorStyle = 'nwse-resize';
-          if (text.controls.br) text.controls.br.cursorStyle = 'nwse-resize';
-          if (text.controls.tr) text.controls.tr.cursorStyle = 'nesw-resize';
-          if (text.controls.bl) text.controls.bl.cursorStyle = 'nesw-resize';
-        }
         canvas.add(text);
         canvas.setActiveObject(text);
 
