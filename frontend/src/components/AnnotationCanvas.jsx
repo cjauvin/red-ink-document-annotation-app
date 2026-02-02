@@ -28,26 +28,13 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     const s = currentScaleRef.current;
     return {
       ...json,
-      objects: json.objects.map((obj) => {
-        const normalized = {
-          ...obj,
-          left: obj.left / s,
-          top: obj.top / s,
-        };
-
-        // Textboxes: scale width and fontSize, keep scaleX/scaleY at 1
-        if (obj.type === 'textbox') {
-          normalized.width = (obj.width || 150) / s;
-          normalized.fontSize = (obj.fontSize || 18) / s;
-          normalized.scaleX = 1;
-          normalized.scaleY = 1;
-        } else {
-          normalized.scaleX = (obj.scaleX || 1) / s;
-          normalized.scaleY = (obj.scaleY || 1) / s;
-        }
-
-        return normalized;
-      }),
+      objects: json.objects.map((obj) => ({
+        ...obj,
+        left: obj.left / s,
+        top: obj.top / s,
+        scaleX: (obj.scaleX || 1) / s,
+        scaleY: (obj.scaleY || 1) / s,
+      })),
     };
   }, []);
 
@@ -89,26 +76,13 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
     return {
       ...json,
-      objects: json.objects.map((obj) => {
-        const denormalized = {
-          ...obj,
-          left: obj.left * targetScale,
-          top: obj.top * targetScale,
-        };
-
-        // Textboxes: scale width and fontSize, keep scaleX/scaleY at 1
-        if (obj.type === 'textbox') {
-          denormalized.width = (obj.width || 150) * targetScale;
-          denormalized.fontSize = (obj.fontSize || 18) * targetScale;
-          denormalized.scaleX = 1;
-          denormalized.scaleY = 1;
-        } else {
-          denormalized.scaleX = (obj.scaleX || 1) * targetScale;
-          denormalized.scaleY = (obj.scaleY || 1) * targetScale;
-        }
-
-        return denormalized;
-      }),
+      objects: json.objects.map((obj) => ({
+        ...obj,
+        left: obj.left * targetScale,
+        top: obj.top * targetScale,
+        scaleX: (obj.scaleX || 1) * targetScale,
+        scaleY: (obj.scaleY || 1) * targetScale,
+      })),
     };
   }, []);
 
@@ -174,16 +148,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         obj.left *= scaleFactor;
         obj.top *= scaleFactor;
 
-        // Textboxes: scale width and fontSize, keep scaleX/scaleY at 1
-        if (obj.type === 'textbox') {
-          obj.set('width', obj.width * scaleFactor);
-          obj.set('fontSize', obj.fontSize * scaleFactor);
-          obj.scaleX = 1;
-          obj.scaleY = 1;
-        } else {
-          obj.scaleX *= scaleFactor;
-          obj.scaleY *= scaleFactor;
-        }
+        // Scale size
+        obj.scaleX *= scaleFactor;
+        obj.scaleY *= scaleFactor;
 
         obj.setCoords();
       });
@@ -260,6 +227,25 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           originX: 'left',
           originY: 'top',
         });
+        // Disable side handles (which change width) - only use corners (which change scale)
+        text.setControlsVisibility({
+          ml: false,  // middle left - disabled
+          mr: false,  // middle right - disabled
+          mt: false,  // middle top - disabled
+          mb: false,  // middle bottom - disabled
+          tl: true,   // top left corner
+          tr: true,   // top right corner
+          bl: true,   // bottom left corner
+          br: true,   // bottom right corner
+          mtr: true,  // rotation control
+        });
+        // Set diagonal cursors for corner controls
+        if (text.controls) {
+          if (text.controls.tl) text.controls.tl.cursorStyle = 'nwse-resize';
+          if (text.controls.br) text.controls.br.cursorStyle = 'nwse-resize';
+          if (text.controls.tr) text.controls.tr.cursorStyle = 'nesw-resize';
+          if (text.controls.bl) text.controls.bl.cursorStyle = 'nesw-resize';
+        }
         canvas.add(text);
         canvas.setActiveObject(text);
 
@@ -414,24 +400,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     };
     canvas.on('object:moving', handleObjectMoving);
 
-    // Convert textbox scale to width/fontSize after scaling
-    const handleObjectScaled = (opt) => {
-      const obj = opt.target;
-      if (obj.type === 'textbox') {
-        // Convert scale to width and fontSize
-        const newWidth = obj.width * obj.scaleX;
-        const newFontSize = obj.fontSize * obj.scaleY;
-        obj.set({
-          width: newWidth,
-          fontSize: newFontSize,
-          scaleX: 1,
-          scaleY: 1,
-        });
-        obj.setCoords();
-      }
-    };
-    canvas.on('object:scaled', handleObjectScaled);
-
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
 
@@ -448,7 +416,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
       canvas.off('object:moving', handleObjectMoving);
-      canvas.off('object:scaled', handleObjectScaled);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
