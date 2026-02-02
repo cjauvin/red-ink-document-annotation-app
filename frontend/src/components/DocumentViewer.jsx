@@ -6,9 +6,9 @@ import 'react-pdf/dist/Page/TextLayer.css';
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-// Internal scale values (capped at 0.5 for performance)
-// Displayed as 2x: 50% → 100%, 33% → 66%, 25% → 50%
-const ZOOM_LEVELS = [0.25, 0.33, 0.5];
+// Internal scale values
+// Displayed as 2x: 25% → 50%, 33% → 66%, 50% → 100%, 62.5% → 125%
+const ZOOM_LEVELS = [0.25, 0.33, 0.5, 0.625];
 const FIT_WIDTH = 'fit';
 const ZOOM_STORAGE_KEY = 'red-ink-zoom-level';
 
