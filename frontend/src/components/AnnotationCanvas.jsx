@@ -414,6 +414,24 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     };
     canvas.on('object:moving', handleObjectMoving);
 
+    // Convert textbox scale to width/fontSize after scaling
+    const handleObjectScaled = (opt) => {
+      const obj = opt.target;
+      if (obj.type === 'textbox') {
+        // Convert scale to width and fontSize
+        const newWidth = obj.width * obj.scaleX;
+        const newFontSize = obj.fontSize * obj.scaleY;
+        obj.set({
+          width: newWidth,
+          fontSize: newFontSize,
+          scaleX: 1,
+          scaleY: 1,
+        });
+        obj.setCoords();
+      }
+    };
+    canvas.on('object:scaled', handleObjectScaled);
+
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
 
@@ -430,6 +448,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
       canvas.off('object:moving', handleObjectMoving);
+      canvas.off('object:scaled', handleObjectScaled);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
