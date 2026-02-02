@@ -17,8 +17,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const isDrawingRef = useRef(false);
   const startPointRef = useRef(null);
   const tempObjectRef = useRef(null);
-  const tempLineRef = useRef(null);      // For arrow drawing optimization
-  const tempTriangleRef = useRef(null);  // For arrow drawing optimization
   const historyRef = useRef([]);
   const currentScaleRef = useRef(scale);
   const justExitedTextEditRef = useRef(false);
@@ -117,7 +115,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       selection: !readOnly,
       isDrawingMode: false,
       enableRetinaScaling: false,
-      renderOnAddRemove: false,  // Prevent auto-render on add/remove for performance
     });
 
     fabricRef.current = canvas;
@@ -296,48 +293,48 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       };
       const start = startPointRef.current;
 
+      // Remove temp object
+      if (tempObjectRef.current) {
+        canvas.remove(tempObjectRef.current);
+      }
+
       if (activeTool === 'arrow') {
+        // Clamp arrow endpoint to keep it inside canvas
         const headLength = 15;
         const clampedEndX = Math.max(headLength / 2, Math.min(pointer.x, width - headLength / 2));
         const angle = Math.atan2(pointer.y - start.y, clampedEndX - start.x);
 
-        if (tempLineRef.current && tempTriangleRef.current) {
-          // Update existing objects instead of recreating
-          tempLineRef.current.set({ x2: clampedEndX, y2: pointer.y });
-          tempTriangleRef.current.set({
-            left: clampedEndX,
-            top: pointer.y,
-            angle: (angle * 180) / Math.PI + 90,
-          });
-        } else {
-          // First mouse move - create the objects
-          const line = new fabric.Line([start.x, start.y, clampedEndX, pointer.y], {
-            stroke: activeColor,
-            strokeWidth: 2,
-            selectable: false,
-            evented: false,
-          });
+        const line = new fabric.Line([start.x, start.y, clampedEndX, pointer.y], {
+          stroke: activeColor,
+          strokeWidth: 2,
+          selectable: false,
+        });
 
-          const triangle = new fabric.Triangle({
-            left: clampedEndX,
-            top: pointer.y,
-            width: headLength,
-            height: headLength,
-            fill: activeColor,
-            angle: (angle * 180) / Math.PI + 90,
-            originX: 'center',
-            originY: 'center',
-            selectable: false,
-            evented: false,
-          });
+        const triangle = new fabric.Triangle({
+          left: clampedEndX,
+          top: pointer.y,
+          width: headLength,
+          height: headLength,
+          fill: activeColor,
+          angle: (angle * 180) / Math.PI + 90,
+          originX: 'center',
+          originY: 'center',
+          selectable: false,
+        });
 
-          tempLineRef.current = line;
-          tempTriangleRef.current = triangle;
-          canvas.add(line);
-          canvas.add(triangle);
-        }
+        const group = new fabric.Group([line, triangle], {
+          selectable: false,
+          evented: false,
+          hasBorders: false,
+          hasControls: false,
+        });
+
+        tempObjectRef.current = group;
+        canvas.add(group);
+        canvas.discardActiveObject();
       } else if (activeTool === 'box') {
         const strokeWidth = 2;
+        // Clamp coordinates to keep stroke inside canvas
         const clampedStartX = Math.max(strokeWidth / 2, Math.min(start.x, width - strokeWidth / 2));
         const clampedPointerX = Math.max(strokeWidth / 2, Math.min(pointer.x, width - strokeWidth / 2));
 
@@ -346,36 +343,26 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         const rectWidth = Math.abs(clampedPointerX - clampedStartX);
         const rectHeight = Math.abs(pointer.y - start.y);
 
-        if (tempObjectRef.current) {
-          // Update existing rect instead of recreating
-          tempObjectRef.current.set({
-            left,
-            top,
-            width: rectWidth || 1,
-            height: rectHeight || 1,
-          });
-        } else {
-          // First mouse move - create the rect
-          const rect = new fabric.Rect({
-            left,
-            top,
-            width: rectWidth || 1,
-            height: rectHeight || 1,
-            fill: 'transparent',
-            stroke: activeColor,
-            strokeWidth: 2,
-            strokeUniform: true,
-            originX: 'left',
-            originY: 'top',
-            selectable: false,
-            evented: false,
-            hasBorders: false,
-            hasControls: false,
-          });
+        const rect = new fabric.Rect({
+          left,
+          top,
+          width: rectWidth || 1,
+          height: rectHeight || 1,
+          fill: 'transparent',
+          stroke: activeColor,
+          strokeWidth: 2,
+          strokeUniform: true,
+          originX: 'left',
+          originY: 'top',
+          selectable: false,
+          evented: false,
+          hasBorders: false,
+          hasControls: false,
+        });
 
-          tempObjectRef.current = rect;
-          canvas.add(rect);
-        }
+        tempObjectRef.current = rect;
+        canvas.add(rect);
+        canvas.discardActiveObject();
       }
 
       canvas.requestRenderAll();
@@ -391,54 +378,30 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       // Re-enable selection
       canvas.selection = true;
 
-      // Handle arrow completion - group line and triangle
-      if (tempLineRef.current && tempTriangleRef.current) {
-        const rawPointer = opt.scenePoint || opt.pointer;
-        const endPoint = {
-          x: Math.max(0, Math.min(rawPointer.x, width)),
-          y: rawPointer.y,
-        };
-        const length = Math.sqrt(
-          Math.pow(endPoint.x - startPoint.x, 2) +
-          Math.pow(endPoint.y - startPoint.y, 2)
-        );
-        const minArrowLength = 25;
-
-        if (length < minArrowLength) {
-          // Arrow too short - remove it
-          canvas.remove(tempLineRef.current);
-          canvas.remove(tempTriangleRef.current);
-          tempLineRef.current = null;
-          tempTriangleRef.current = null;
-          canvas.requestRenderAll();
-          return;
-        }
-
-        // Remove individual objects and create group
-        canvas.remove(tempLineRef.current);
-        canvas.remove(tempTriangleRef.current);
-
-        const group = new fabric.Group([tempLineRef.current, tempTriangleRef.current], {
-          selectable: true,
-          evented: true,
-          hasBorders: true,
-          hasControls: true,
-        });
-        group.setCoords();
-        canvas.add(group);
-
-        tempLineRef.current = null;
-        tempTriangleRef.current = null;
-
-        canvas.discardActiveObject();
-        canvas.requestRenderAll();
-        saveToHistory();
-        return;
-      }
-
-      // Handle box completion
       if (tempObjectRef.current) {
         const obj = tempObjectRef.current;
+
+        // Check if arrow is too short (minimum 25px length for visible body)
+        if (obj.type === 'group' && startPoint) {
+          const rawPointer = opt.scenePoint || opt.pointer;
+          const endPoint = {
+            x: Math.max(0, Math.min(rawPointer.x, width)),
+            y: rawPointer.y,
+          };
+          const length = Math.sqrt(
+            Math.pow(endPoint.x - startPoint.x, 2) +
+            Math.pow(endPoint.y - startPoint.y, 2)
+          );
+          const minArrowLength = 25;
+
+          if (length < minArrowLength) {
+            // Arrow too short - remove it
+            canvas.remove(obj);
+            tempObjectRef.current = null;
+            canvas.requestRenderAll();
+            return;
+          }
+        }
 
         // Make the object selectable and interactive now that drawing is complete
         obj.selectable = true;
