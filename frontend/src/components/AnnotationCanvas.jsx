@@ -67,9 +67,11 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         ...obj,
         left: obj.left / s,
         top: obj.top / s,
-        scaleX: (obj.scaleX || 1) / s,
-        scaleY: (obj.scaleY || 1) / s,
       };
+
+      // Scale scaleX/scaleY (zoom effect modifies these, so we need to normalize them too)
+      if (obj.scaleX !== undefined) normalized.scaleX = obj.scaleX / s;
+      if (obj.scaleY !== undefined) normalized.scaleY = obj.scaleY / s;
 
       // Scale width/height for shapes
       if (obj.width) normalized.width = obj.width / s;
@@ -86,6 +88,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
       // Scale stroke width
       if (obj.strokeWidth) normalized.strokeWidth = obj.strokeWidth / s;
+
+      // Scale radius for circles
+      if (obj.radius) normalized.radius = obj.radius / s;
 
       // Handle group objects (arrows)
       if (obj.objects && Array.isArray(obj.objects)) {
@@ -146,9 +151,11 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         ...obj,
         left: obj.left * targetScale,
         top: obj.top * targetScale,
-        scaleX: (obj.scaleX || 1) * targetScale,
-        scaleY: (obj.scaleY || 1) * targetScale,
       };
+
+      // Scale scaleX/scaleY (to match zoom effect behavior)
+      if (obj.scaleX !== undefined) denormalized.scaleX = obj.scaleX * targetScale;
+      if (obj.scaleY !== undefined) denormalized.scaleY = obj.scaleY * targetScale;
 
       // Scale width/height for shapes
       if (obj.width) denormalized.width = obj.width * targetScale;
@@ -165,6 +172,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
       // Scale stroke width
       if (obj.strokeWidth) denormalized.strokeWidth = obj.strokeWidth * targetScale;
+
+      // Scale radius for circles
+      if (obj.radius) denormalized.radius = obj.radius * targetScale;
 
       // Handle group objects (arrows)
       if (obj.objects && Array.isArray(obj.objects)) {
