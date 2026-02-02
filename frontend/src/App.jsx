@@ -78,6 +78,14 @@ function DocumentPage() {
   const [activePage, setActivePage] = useState(1);  // Track which page is being edited
 
   const canvasRefsMap = useRef({});  // { pageNumber: canvasRef }
+  const isMountedRef = useRef(true);  // Track if component is still mounted
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Check if current user is the document owner
   const currentUserId = getUserToken();
@@ -128,10 +136,12 @@ function DocumentPage() {
   }, [id]);
 
   const handleDocumentDimensions = useCallback((dims) => {
+    if (!isMountedRef.current) return;
     setDocumentDimensions(dims);
   }, []);
 
   const handleCanvasChange = useCallback((pageNumber, data) => {
+    if (!isMountedRef.current) return;
     if (!readOnly) {
       getSaveFunction(pageNumber)(data);
       setAnnotationsMap(prev => ({ ...prev, [pageNumber]: data }));
@@ -139,6 +149,7 @@ function DocumentPage() {
   }, [readOnly, getSaveFunction]);
 
   const handleHistoryChange = useCallback((pageNumber, hasHistory) => {
+    if (!isMountedRef.current) return;
     setCanUndoMap(prev => ({ ...prev, [pageNumber]: hasHistory }));
   }, []);
 
@@ -181,7 +192,7 @@ function DocumentPage() {
         onCanvasChange={(data) => handleCanvasChange(pageNumber, data)}
         initialData={annotationsMap[pageNumber] || null}
         onHistoryChange={(hasHistory) => handleHistoryChange(pageNumber, hasHistory)}
-        onFocus={() => setActivePage(pageNumber)}
+        onFocus={() => isMountedRef.current && setActivePage(pageNumber)}
         readOnly={readOnly}
       />
     );
