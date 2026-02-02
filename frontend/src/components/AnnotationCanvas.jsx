@@ -57,6 +57,8 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   }, []);
 
   // Normalize annotation data to scale=1 for storage
+  // For non-groups: dimensions are already in current scale, just divide by scale
+  // For groups (arrows): scaleX/scaleY are used for zoom, bake them and reset to 1
   const normalizeData = useCallback((json) => {
     if (!json || !json.objects || currentScaleRef.current === 1) return json;
 
@@ -69,33 +71,31 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         top: obj.top / s,
       };
 
-      // Scale scaleX/scaleY (zoom effect modifies these, so we need to normalize them too)
-      if (obj.scaleX !== undefined) normalized.scaleX = obj.scaleX / s;
-      if (obj.scaleY !== undefined) normalized.scaleY = obj.scaleY / s;
-
-      // Scale width/height for shapes
-      if (obj.width) normalized.width = obj.width / s;
-      if (obj.height) normalized.height = obj.height / s;
-
-      // Scale font size for text
-      if (obj.fontSize) normalized.fontSize = obj.fontSize / s;
-
-      // Scale line coordinates
-      if (obj.x1 !== undefined) normalized.x1 = obj.x1 / s;
-      if (obj.y1 !== undefined) normalized.y1 = obj.y1 / s;
-      if (obj.x2 !== undefined) normalized.x2 = obj.x2 / s;
-      if (obj.y2 !== undefined) normalized.y2 = obj.y2 / s;
-
-      // Scale stroke width
-      if (obj.strokeWidth) normalized.strokeWidth = obj.strokeWidth / s;
-
-      // Scale radius for circles
-      if (obj.radius) normalized.radius = obj.radius / s;
-
-      // Handle group objects (arrows)
-      if (obj.objects && Array.isArray(obj.objects)) {
-        normalized.objects = obj.objects.map(normalizeObject);
+      // For groups (arrows), bake scaleX/scaleY and reset to 1
+      if (obj.type === 'group') {
+        const effectiveScaleX = obj.scaleX || 1;
+        const effectiveScaleY = obj.scaleY || 1;
+        // Bake scale into width/height
+        if (obj.width) normalized.width = (obj.width * effectiveScaleX) / s;
+        if (obj.height) normalized.height = (obj.height * effectiveScaleY) / s;
+        normalized.scaleX = 1;
+        normalized.scaleY = 1;
+        // Don't normalize children - they use group-relative coordinates
+      } else {
+        // For non-groups, dimensions are already scaled, just normalize
+        if (obj.width) normalized.width = obj.width / s;
+        if (obj.height) normalized.height = obj.height / s;
+        if (obj.fontSize) normalized.fontSize = obj.fontSize / s;
+        if (obj.x1 !== undefined) normalized.x1 = obj.x1 / s;
+        if (obj.y1 !== undefined) normalized.y1 = obj.y1 / s;
+        if (obj.x2 !== undefined) normalized.x2 = obj.x2 / s;
+        if (obj.y2 !== undefined) normalized.y2 = obj.y2 / s;
+        // Keep scaleX/scaleY as-is for user-applied scaling
       }
+
+      // Common properties
+      if (obj.strokeWidth) normalized.strokeWidth = obj.strokeWidth / s;
+      if (obj.radius) normalized.radius = obj.radius / s;
 
       return normalized;
     };
@@ -153,33 +153,29 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         top: obj.top * targetScale,
       };
 
-      // Scale scaleX/scaleY (to match zoom effect behavior)
-      if (obj.scaleX !== undefined) denormalized.scaleX = obj.scaleX * targetScale;
-      if (obj.scaleY !== undefined) denormalized.scaleY = obj.scaleY * targetScale;
-
-      // Scale width/height for shapes
-      if (obj.width) denormalized.width = obj.width * targetScale;
-      if (obj.height) denormalized.height = obj.height * targetScale;
-
-      // Scale font size for text
-      if (obj.fontSize) denormalized.fontSize = obj.fontSize * targetScale;
-
-      // Scale line coordinates
-      if (obj.x1 !== undefined) denormalized.x1 = obj.x1 * targetScale;
-      if (obj.y1 !== undefined) denormalized.y1 = obj.y1 * targetScale;
-      if (obj.x2 !== undefined) denormalized.x2 = obj.x2 * targetScale;
-      if (obj.y2 !== undefined) denormalized.y2 = obj.y2 * targetScale;
-
-      // Scale stroke width
-      if (obj.strokeWidth) denormalized.strokeWidth = obj.strokeWidth * targetScale;
-
-      // Scale radius for circles
-      if (obj.radius) denormalized.radius = obj.radius * targetScale;
-
-      // Handle group objects (arrows)
-      if (obj.objects && Array.isArray(obj.objects)) {
-        denormalized.objects = obj.objects.map(denormalizeObject);
+      // For groups (arrows), width/height were baked, scale them
+      // scaleX/scaleY are stored as 1, keep them as 1
+      if (obj.type === 'group') {
+        if (obj.width) denormalized.width = obj.width * targetScale;
+        if (obj.height) denormalized.height = obj.height * targetScale;
+        denormalized.scaleX = 1;
+        denormalized.scaleY = 1;
+        // Don't denormalize children - they use group-relative coordinates
+      } else {
+        // For non-groups, scale dimensions
+        if (obj.width) denormalized.width = obj.width * targetScale;
+        if (obj.height) denormalized.height = obj.height * targetScale;
+        if (obj.fontSize) denormalized.fontSize = obj.fontSize * targetScale;
+        if (obj.x1 !== undefined) denormalized.x1 = obj.x1 * targetScale;
+        if (obj.y1 !== undefined) denormalized.y1 = obj.y1 * targetScale;
+        if (obj.x2 !== undefined) denormalized.x2 = obj.x2 * targetScale;
+        if (obj.y2 !== undefined) denormalized.y2 = obj.y2 * targetScale;
+        // Keep scaleX/scaleY as-is for user-applied scaling
       }
+
+      // Common properties
+      if (obj.strokeWidth) denormalized.strokeWidth = obj.strokeWidth * targetScale;
+      if (obj.radius) denormalized.radius = obj.radius * targetScale;
 
       return denormalized;
     };
@@ -254,9 +250,20 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         obj.left *= scaleFactor;
         obj.top *= scaleFactor;
 
-        // Scale size
-        obj.scaleX *= scaleFactor;
-        obj.scaleY *= scaleFactor;
+        // Scale actual dimensions instead of scaleX/scaleY
+        // This keeps scaleX/scaleY reserved for user-applied scaling only
+        if (obj.width) obj.width *= scaleFactor;
+        if (obj.height) obj.height *= scaleFactor;
+        if (obj.fontSize) obj.fontSize *= scaleFactor;
+        if (obj.strokeWidth) obj.strokeWidth *= scaleFactor;
+        if (obj.radius) obj.radius *= scaleFactor;
+
+        // For groups (arrows), we still need to scale the group
+        // since children have relative coordinates
+        if (obj.type === 'group') {
+          obj.scaleX *= scaleFactor;
+          obj.scaleY *= scaleFactor;
+        }
 
         obj.setCoords();
       });
