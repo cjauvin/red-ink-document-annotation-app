@@ -700,6 +700,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       ref={canvasRef}
       width={width}
       height={height}
+      style={{ touchAction: 'pan-y pan-x' }}
     />
   );
 });

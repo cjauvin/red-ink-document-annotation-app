@@ -257,7 +257,10 @@ export function DocumentViewer({
                       />
                       {/* Per-page annotation canvas */}
                       {!loading && renderAnnotations && pageHeight > 0 && (
-                        <div className="absolute top-0 left-0 w-full h-full pointer-events-auto">
+                        <div
+                          className="absolute top-0 left-0 w-full h-full pointer-events-auto"
+                          style={{ touchAction: 'pan-y pan-x' }}
+                        >
                           {renderAnnotations(pageNumber, pageWidth, pageHeight)}
                         </div>
                       )}
