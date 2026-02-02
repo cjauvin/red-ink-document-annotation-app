@@ -19,7 +19,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const startPointRef = useRef(null);
   const tempObjectRef = useRef(null);
   const historyRef = useRef([]);
-  const currentScaleRef = useRef(scale);
+  const prevDimensionsRef = useRef({ width, height });
   const justExitedTextEditRef = useRef(false);
   const onFocusRef = useRef(onFocus);
   const isMountedRef = useRef(true);
@@ -196,7 +196,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     });
 
     fabricRef.current = canvas;
-    currentScaleRef.current = scale;
+    prevDimensionsRef.current = { width, height };
     setCanvasReady(true);
 
     // Load initial data immediately after canvas creation
@@ -229,51 +229,78 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount - initialData is captured at creation time
 
-  // Update canvas size and scale objects when zoom changes
+  // Update canvas size when dimensions change (zoom)
+  // Instead of scaling objects, we normalize → clear → denormalize
+  // This uses the same logic as cross-device and is more reliable
   useEffect(() => {
     if (!fabricRef.current || !width || !height) return;
 
     const canvas = fabricRef.current;
-    const prevScale = currentScaleRef.current;
-    const newScale = scale;
+    const prev = prevDimensionsRef.current;
 
-    // Update canvas dimensions
-    canvas.setDimensions({ width, height });
+    // If dimensions changed, reload objects at new size
+    if ((prev.width !== width || prev.height !== height) && prev.width > 0 && prev.height > 0) {
+      // Get current state and normalize it using OLD dimensions
+      const currentJson = canvas.toJSON();
 
-    // Scale all objects if scale changed
-    if (prevScale !== newScale && prevScale > 0) {
-      const scaleFactor = newScale / prevScale;
+      if (currentJson.objects && currentJson.objects.length > 0) {
+        // Normalize using old dimensions
+        const normalized = {
+          ...currentJson,
+          objects: currentJson.objects.map(obj => {
+            const effectiveScaleX = obj.scaleX || 1;
+            const effectiveScaleY = obj.scaleY || 1;
 
-      canvas.getObjects().forEach((obj) => {
-        // Scale position
-        obj.left *= scaleFactor;
-        obj.top *= scaleFactor;
+            const norm = {
+              ...obj,
+              left: obj.left / prev.width,
+              top: obj.top / prev.height,
+              scaleX: 1,
+              scaleY: 1,
+            };
 
-        // Scale actual dimensions instead of scaleX/scaleY
-        // This keeps scaleX/scaleY reserved for user-applied scaling only
-        if (obj.width) obj.width *= scaleFactor;
-        if (obj.height) obj.height *= scaleFactor;
-        if (obj.fontSize) obj.fontSize *= scaleFactor;
-        if (obj.strokeWidth) obj.strokeWidth *= scaleFactor;
-        if (obj.radius) obj.radius *= scaleFactor;
+            if (obj.width) norm.width = (obj.width * effectiveScaleX) / prev.width;
+            if (obj.height) norm.height = (obj.height * effectiveScaleY) / prev.height;
+            if (obj.fontSize) norm.fontSize = (obj.fontSize * effectiveScaleY) / prev.height;
+            if (obj.strokeWidth) norm.strokeWidth = (obj.strokeWidth * effectiveScaleX) / prev.width;
+            if (obj.radius) norm.radius = (obj.radius * effectiveScaleX) / prev.width;
 
-        // For groups (arrows), we still need to scale the group
-        // since children have relative coordinates
-        if (obj.type === 'group') {
-          obj.scaleX *= scaleFactor;
-          obj.scaleY *= scaleFactor;
-        }
+            return norm;
+          }),
+        };
 
-        obj.setCoords();
-      });
+        // Denormalize using NEW dimensions
+        const denormalized = denormalizeData(normalized, width, height);
 
-      // Update history with scaled state
-      historyRef.current = [canvas.toJSON()];
+        // Clear and reload
+        canvas.clear();
+        canvas.setDimensions({ width, height });
+
+        fabric.util.enlivenObjects(denormalized.objects).then((objects) => {
+          objects.forEach((obj) => {
+            if (readOnly) {
+              obj.selectable = false;
+              obj.evented = false;
+            }
+            configureTextbox(obj);
+            canvas.add(obj);
+          });
+          canvas.renderAll();
+          historyRef.current = [canvas.toJSON()];
+        });
+      } else {
+        // No objects, just update dimensions
+        canvas.setDimensions({ width, height });
+        canvas.renderAll();
+      }
+    } else {
+      // First render or no change, just set dimensions
+      canvas.setDimensions({ width, height });
+      canvas.renderAll();
     }
 
-    currentScaleRef.current = newScale;
-    canvas.renderAll();
-  }, [width, height, scale]);
+    prevDimensionsRef.current = { width, height };
+  }, [width, height, denormalizeData, configureTextbox, readOnly]);
 
   // Save canvas state to history
   const saveToHistory = useCallback(() => {
@@ -283,7 +310,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     historyRef.current.push(json);
     if (isMountedRef.current) onHistoryChange?.(historyRef.current.length > 1);
 
-    // Normalize before sending to parent (store at scale=1)
+    // Normalize before sending to parent (store as percentages)
     const normalizedJson = normalizeData(json);
     if (isMountedRef.current) onCanvasChange?.(normalizedJson);
   }, [onCanvasChange, onHistoryChange, normalizeData]);
