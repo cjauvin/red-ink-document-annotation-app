@@ -28,13 +28,26 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     const s = currentScaleRef.current;
     return {
       ...json,
-      objects: json.objects.map((obj) => ({
-        ...obj,
-        left: obj.left / s,
-        top: obj.top / s,
-        scaleX: (obj.scaleX || 1) / s,
-        scaleY: (obj.scaleY || 1) / s,
-      })),
+      objects: json.objects.map((obj) => {
+        const normalized = {
+          ...obj,
+          left: obj.left / s,
+          top: obj.top / s,
+        };
+
+        // Textboxes: scale width and fontSize, keep scaleX/scaleY at 1
+        if (obj.type === 'textbox') {
+          normalized.width = (obj.width || 150) / s;
+          normalized.fontSize = (obj.fontSize || 18) / s;
+          normalized.scaleX = 1;
+          normalized.scaleY = 1;
+        } else {
+          normalized.scaleX = (obj.scaleX || 1) / s;
+          normalized.scaleY = (obj.scaleY || 1) / s;
+        }
+
+        return normalized;
+      }),
     };
   }, []);
 
@@ -76,13 +89,26 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
     return {
       ...json,
-      objects: json.objects.map((obj) => ({
-        ...obj,
-        left: obj.left * targetScale,
-        top: obj.top * targetScale,
-        scaleX: (obj.scaleX || 1) * targetScale,
-        scaleY: (obj.scaleY || 1) * targetScale,
-      })),
+      objects: json.objects.map((obj) => {
+        const denormalized = {
+          ...obj,
+          left: obj.left * targetScale,
+          top: obj.top * targetScale,
+        };
+
+        // Textboxes: scale width and fontSize, keep scaleX/scaleY at 1
+        if (obj.type === 'textbox') {
+          denormalized.width = (obj.width || 150) * targetScale;
+          denormalized.fontSize = (obj.fontSize || 18) * targetScale;
+          denormalized.scaleX = 1;
+          denormalized.scaleY = 1;
+        } else {
+          denormalized.scaleX = (obj.scaleX || 1) * targetScale;
+          denormalized.scaleY = (obj.scaleY || 1) * targetScale;
+        }
+
+        return denormalized;
+      }),
     };
   }, []);
 
@@ -148,9 +174,16 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         obj.left *= scaleFactor;
         obj.top *= scaleFactor;
 
-        // Scale size
-        obj.scaleX *= scaleFactor;
-        obj.scaleY *= scaleFactor;
+        // Textboxes: scale width and fontSize, keep scaleX/scaleY at 1
+        if (obj.type === 'textbox') {
+          obj.set('width', obj.width * scaleFactor);
+          obj.set('fontSize', obj.fontSize * scaleFactor);
+          obj.scaleX = 1;
+          obj.scaleY = 1;
+        } else {
+          obj.scaleX *= scaleFactor;
+          obj.scaleY *= scaleFactor;
+        }
 
         obj.setCoords();
       });
