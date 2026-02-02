@@ -1,0 +1,10 @@
+.git
+.gitignore
+*.md
+.env*
+.vscode
+__pycache__
+*.pyc
+.venv
+uploads/*
+data/*
