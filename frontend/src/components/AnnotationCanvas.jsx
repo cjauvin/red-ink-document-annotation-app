@@ -368,10 +368,11 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.requestRenderAll();
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (opt) => {
       if (!isDrawingRef.current) return;
 
       isDrawingRef.current = false;
+      const startPoint = startPointRef.current;
       startPointRef.current = null;
 
       // Re-enable selection
@@ -379,6 +380,29 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
       if (tempObjectRef.current) {
         const obj = tempObjectRef.current;
+
+        // Check if arrow is too short (minimum 25px length for visible body)
+        if (obj.type === 'group' && startPoint) {
+          const rawPointer = opt.scenePoint || opt.pointer;
+          const endPoint = {
+            x: Math.max(0, Math.min(rawPointer.x, width)),
+            y: rawPointer.y,
+          };
+          const length = Math.sqrt(
+            Math.pow(endPoint.x - startPoint.x, 2) +
+            Math.pow(endPoint.y - startPoint.y, 2)
+          );
+          const minArrowLength = 25;
+
+          if (length < minArrowLength) {
+            // Arrow too short - remove it
+            canvas.remove(obj);
+            tempObjectRef.current = null;
+            canvas.requestRenderAll();
+            return;
+          }
+        }
+
         // Make the object selectable and interactive now that drawing is complete
         obj.selectable = true;
         obj.evented = true;
