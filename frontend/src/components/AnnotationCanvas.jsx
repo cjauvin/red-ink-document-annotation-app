@@ -21,20 +21,20 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const currentScaleRef = useRef(scale);
   const justExitedTextEditRef = useRef(false);
 
-  // Configure textbox objects with uniform scaling and corner-only controls
+  // Configure textbox objects with uniform scaling and appropriate controls
   const configureTextbox = useCallback((obj) => {
     if (obj.type === 'textbox') {
       obj.lockUniScaling = true;
       obj.setControlsVisibility({
-        ml: false,
-        mr: false,
-        mt: false,
-        mb: false,
-        tl: true,
-        tr: true,
-        bl: true,
-        br: true,
-        mtr: true,
+        ml: true,   // middle left - controls width
+        mr: true,   // middle right - controls width
+        mt: false,  // middle top - disabled (height is auto)
+        mb: false,  // middle bottom - disabled (height is auto)
+        tl: true,   // top left corner - uniform scale
+        tr: true,   // top right corner - uniform scale
+        bl: true,   // bottom left corner - uniform scale
+        br: true,   // bottom right corner - uniform scale
+        mtr: true,  // rotation control
       });
     }
   }, []);
@@ -250,16 +250,16 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           originY: 'top',
           lockUniScaling: true,  // Force uniform scaling (both directions at once)
         });
-        // Disable side handles - only use corners for uniform scaling
+        // Configure controls: side handles for width, corners for uniform scaling
         text.setControlsVisibility({
-          ml: false,  // middle left - disabled
-          mr: false,  // middle right - disabled
-          mt: false,  // middle top - disabled
-          mb: false,  // middle bottom - disabled
-          tl: true,   // top left corner
-          tr: true,   // top right corner
-          bl: true,   // bottom left corner
-          br: true,   // bottom right corner
+          ml: true,   // middle left - controls width
+          mr: true,   // middle right - controls width
+          mt: false,  // middle top - disabled (height is auto)
+          mb: false,  // middle bottom - disabled (height is auto)
+          tl: true,   // top left corner - uniform scale
+          tr: true,   // top right corner - uniform scale
+          bl: true,   // bottom left corner - uniform scale
+          br: true,   // bottom right corner - uniform scale
           mtr: true,  // rotation control
         });
         canvas.add(text);
