@@ -61,6 +61,7 @@ red-ink-app/
 │   ├── requirements.txt
 │   └── run.py
 ├── CLAUDE.md                 # This file
+├── Caddyfile                 # Caddy reverse proxy config (production)
 └── README.md
 ```
 
@@ -99,12 +100,19 @@ red-ink-app/
 | GET | `/api/share/{hash}` | Get shared document (read-only) |
 
 ## Annotation Tools
-- **Arrow**: Click and drag to draw directional arrow
+- **Arrow**: Click and drag to draw directional arrow (minimum 25px length enforced)
 - **Box**: Click and drag to draw rectangle outline
-- **Text**: Click to place text, type content
+- **Text**: Click to place text (default width 150px), type content
 - **Colors**: Red (#EF4444), Blue (#3B82F6), Green (#22C55E), Black (#000000)
 - **Undo**: Remove last annotation
 - **Clear**: Remove all annotations on current page
+
+### Text Annotation Behavior
+When a text annotation is selected:
+- **Corner handles**: Uniform scaling (both dimensions proportionally)
+- **Left/right side handles**: Adjust textbox width (text wrapping area)
+- **Top/bottom handles**: Disabled (height is auto-calculated from content)
+- Uses `lockUniScaling: true` in Fabric.js to enforce proportional scaling
 
 ## Implementation Phases
 
@@ -150,6 +158,36 @@ npm run dev
 # Runs on http://localhost:5173
 ```
 
+### Production Deployment (with SSL)
+The app uses **Caddy** as a reverse proxy with automatic HTTPS via Let's Encrypt.
+
+```bash
+# On VPS, from project root:
+docker compose up -d
+```
+
+This starts:
+- **Caddy**: Reverse proxy on ports 80/443, auto-obtains SSL certificate
+- **Frontend**: Nginx serving React app (internal only)
+- **Backend**: FastAPI server (internal only)
+
+Caddy automatically:
+- Obtains SSL certificate from Let's Encrypt
+- Redirects HTTP → HTTPS
+- Renews certificates before expiry
+
+**Requirements**:
+- Domain DNS pointing to VPS
+- Ports 80 and 443 open in firewall
+- No other service using ports 80/443
+
+The domain is configured in `Caddyfile`:
+```
+encrerouge.ink {
+    reverse_proxy frontend:80
+}
+```
+
 ## Key Implementation Notes
 
 ### DOCX Conversion
@@ -174,3 +212,12 @@ const saveAnnotations = useMemo(
   [docId, page]
 );
 ```
+
+### Zoom Levels and Performance
+The DocumentViewer uses internal scale values displayed at 2x:
+- Internal 0.25 → 50% display
+- Internal 0.33 → 66% display
+- Internal 0.5 → 100% display
+- Internal 0.625 → 125% display (max)
+
+**Performance note**: Canvas performance degrades non-linearly with size (pixel count = scale²). Testing found that internal scales above ~0.65-0.7 cause sluggish annotation rendering due to Fabric.js redraw overhead. The 0.625 max was chosen as a safe limit that works across different hardware.
