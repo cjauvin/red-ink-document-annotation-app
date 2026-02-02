@@ -523,9 +523,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           }
         }
 
-        // Check if rectangle is too small (minimum 20px on both dimensions)
+        // Check if rectangle is too small (minimum 10px on both dimensions)
         if (obj.type === 'rect') {
-          const minRectSize = 20;
+          const minRectSize = 10;
           if (obj.width < minRectSize && obj.height < minRectSize) {
             // Rectangle too small - remove it
             canvas.remove(obj);
