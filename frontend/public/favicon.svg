@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Inkwell body -->
+  <path d="M12 28 L12 52 Q12 58 18 58 L46 58 Q52 58 52 52 L52 28 Z" fill="#1a1a1a"/>
+
+  <!-- Inkwell rim/lip -->
+  <ellipse cx="32" cy="28" rx="22" ry="6" fill="#2a2a2a"/>
+  <ellipse cx="32" cy="28" rx="18" ry="4" fill="#1a1a1a"/>
+
+  <!-- Red ink inside -->
+  <ellipse cx="32" cy="29" rx="14" ry="3" fill="#DC2626"/>
+  <ellipse cx="32" cy="29" rx="10" ry="2" fill="#EF4444" opacity="0.7"/>
+
+  <!-- Ink drip on side -->
+  <path d="M46 32 Q50 36 48 44 Q46 48 44 46 Q42 42 44 36 Q45 32 46 32" fill="#DC2626"/>
+
+  <!-- Highlight on inkwell -->
+  <path d="M16 32 Q14 40 16 48" stroke="#444" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>
