@@ -28,10 +28,7 @@ export function MyDocuments() {
     fetchDocuments();
   }, []);
 
-  const handleDelete = useCallback(async (e, doc) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  const handleDelete = useCallback(async (doc) => {
     if (!window.confirm(`Supprimer "${doc.original_filename}"? Cette action est irréversible.`)) {
       return;
     }
@@ -89,7 +86,7 @@ export function MyDocuments() {
             </div>
           </Link>
           <button
-            onClick={(e) => handleDelete(e, doc)}
+            onClick={() => handleDelete(doc)}
             className="p-3 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Supprimer le document"
           >
