@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import * as fabric from 'fabric';
 
 export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
@@ -22,6 +22,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const currentScaleRef = useRef(scale);
   const justExitedTextEditRef = useRef(false);
   const onFocusRef = useRef(onFocus);
+  const [canvasReady, setCanvasReady] = useState(false);
 
   // Keep onFocus ref updated without triggering re-renders
   useEffect(() => {
@@ -126,6 +127,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
     fabricRef.current = canvas;
     currentScaleRef.current = scale;
+    setCanvasReady(true);
 
     // Load initial data immediately after canvas creation
     if (initialData && initialData.objects && initialData.objects.length > 0) {
@@ -524,7 +526,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
-  }, [activeTool, activeColor, saveToHistory, readOnly, width, height]);
+  }, [activeTool, activeColor, saveToHistory, readOnly, width, height, canvasReady]);
 
   // Update color of selected objects when activeColor changes
   useEffect(() => {
