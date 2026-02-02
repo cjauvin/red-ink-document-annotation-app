@@ -64,34 +64,37 @@ function HomePage() {
   );
 }
 
-// Use page_number = 0 to indicate global (cross-page) annotations
-const GLOBAL_PAGE = 0;
-
 function DocumentPage() {
   const { id } = useParams();
   const [document, setDocument] = useState(null);
-  const [annotationData, setAnnotationData] = useState(null);
+  const [annotationsMap, setAnnotationsMap] = useState({});  // { pageNumber: annotationData }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [documentDimensions, setDocumentDimensions] = useState(null);
   const [activeTool, setActiveTool] = useState('arrow');
   const [activeColor, setActiveColor] = useState('#EF4444');
-  const [canUndo, setCanUndo] = useState(false);
+  const [canUndoMap, setCanUndoMap] = useState({});  // { pageNumber: boolean }
+  const [activePage, setActivePage] = useState(1);  // Track which page is being edited
 
-  const canvasRef = useRef(null);
+  const canvasRefsMap = useRef({});  // { pageNumber: canvasRef }
 
   // Check if current user is the document owner
   const currentUserId = getUserToken();
   const isOwner = document?.user_id && document.user_id === currentUserId;
   const readOnly = !isOwner;
 
-  // Debounced save function for global annotations
-  const saveFunction = useRef(
-    debounce((data) => {
-      saveAnnotations(id, GLOBAL_PAGE, data);
-    }, 500)
-  );
+  // Debounced save functions per page
+  const saveFunctionsRef = useRef({});
+
+  const getSaveFunction = useCallback((pageNumber) => {
+    if (!saveFunctionsRef.current[pageNumber]) {
+      saveFunctionsRef.current[pageNumber] = debounce((data) => {
+        saveAnnotations(id, pageNumber, data);
+      }, 500);
+    }
+    return saveFunctionsRef.current[pageNumber];
+  }, [id]);
 
   useEffect(() => {
     async function fetchData() {
@@ -101,9 +104,14 @@ function DocumentPage() {
           getAnnotations(id),
         ]);
         setDocument(doc);
-        // Look for global annotation (page_number = 0)
-        const globalAnnotation = annots.annotations.find((a) => a.page_number === GLOBAL_PAGE);
-        setAnnotationData(globalAnnotation?.annotation_data || null);
+        // Build map of annotations by page number
+        const map = {};
+        annots.annotations.forEach((a) => {
+          if (a.page_number > 0) {  // Skip legacy global annotations (page 0)
+            map[a.page_number] = a.annotation_data;
+          }
+        });
+        setAnnotationsMap(map);
       } catch (err) {
         setError(err.message || 'Failed to load document');
       } finally {
@@ -114,38 +122,36 @@ function DocumentPage() {
     fetchData();
   }, [id]);
 
-  // Update save function when id changes
+  // Reset save functions when id changes
   useEffect(() => {
-    saveFunction.current = debounce((data) => {
-      saveAnnotations(id, GLOBAL_PAGE, data);
-    }, 500);
+    saveFunctionsRef.current = {};
   }, [id]);
 
   const handleDocumentDimensions = useCallback((dims) => {
     setDocumentDimensions(dims);
   }, []);
 
-  const handleCanvasChange = useCallback((data) => {
+  const handleCanvasChange = useCallback((pageNumber, data) => {
     if (!readOnly) {
-      saveFunction.current(data);
-      setAnnotationData(data);
+      getSaveFunction(pageNumber)(data);
+      setAnnotationsMap(prev => ({ ...prev, [pageNumber]: data }));
     }
-  }, [readOnly]);
+  }, [readOnly, getSaveFunction]);
 
-  const handleHistoryChange = useCallback((hasHistory) => {
-    setCanUndo(hasHistory);
+  const handleHistoryChange = useCallback((pageNumber, hasHistory) => {
+    setCanUndoMap(prev => ({ ...prev, [pageNumber]: hasHistory }));
   }, []);
 
   const handleUndo = useCallback(() => {
-    canvasRef.current?.undo();
-  }, []);
+    canvasRefsMap.current[activePage]?.undo();
+  }, [activePage]);
 
   const handleClear = useCallback(() => {
-    if (!window.confirm('Enlever toutes les annotations? Cette action est irréversible.')) {
+    if (!window.confirm('Enlever toutes les annotations de cette page? Cette action est irréversible.')) {
       return;
     }
-    canvasRef.current?.clear();
-  }, []);
+    canvasRefsMap.current[activePage]?.clear();
+  }, [activePage]);
 
   const handleCopyShareLink = useCallback(async () => {
     if (!document) return;
@@ -159,24 +165,27 @@ function DocumentPage() {
     }
   }, [document]);
 
-  const renderAnnotations = useCallback(() => {
+  const renderAnnotations = useCallback((pageNumber, pageWidth, pageHeight) => {
     if (!documentDimensions) return null;
 
     return (
       <AnnotationCanvas
-        ref={canvasRef}
-        width={documentDimensions.width}
-        height={documentDimensions.height}
+        ref={(ref) => {
+          canvasRefsMap.current[pageNumber] = ref;
+        }}
+        width={pageWidth}
+        height={pageHeight}
         scale={documentDimensions.scale}
         activeTool={activeTool}
         activeColor={activeColor}
-        onCanvasChange={handleCanvasChange}
-        initialData={annotationData}
-        onHistoryChange={handleHistoryChange}
+        onCanvasChange={(data) => handleCanvasChange(pageNumber, data)}
+        initialData={annotationsMap[pageNumber] || null}
+        onHistoryChange={(hasHistory) => handleHistoryChange(pageNumber, hasHistory)}
+        onFocus={() => setActivePage(pageNumber)}
         readOnly={readOnly}
       />
     );
-  }, [documentDimensions, activeTool, activeColor, handleCanvasChange, annotationData, handleHistoryChange, readOnly]);
+  }, [documentDimensions, activeTool, activeColor, handleCanvasChange, annotationsMap, handleHistoryChange, readOnly]);
 
   if (loading) {
     return (
@@ -237,7 +246,7 @@ function DocumentPage() {
         onColorChange={setActiveColor}
         onUndo={handleUndo}
         onClear={handleClear}
-        canUndo={canUndo}
+        canUndo={canUndoMap[activePage] || false}
         readOnly={readOnly}
       />
 
@@ -247,7 +256,7 @@ function DocumentPage() {
           fileUrl={getDocumentFileUrl(id)}
           onDocumentDimensions={handleDocumentDimensions}
           renderAnnotations={renderAnnotations}
-          annotationCount={annotationData?.objects?.length || 0}
+          annotationCount={Object.values(annotationsMap).reduce((sum, data) => sum + (data?.objects?.length || 0), 0)}
         />
       </div>
     </div>

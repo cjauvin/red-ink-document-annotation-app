@@ -238,29 +238,33 @@ export function DocumentViewer({
                 }
                 className="flex flex-col items-center gap-4"
               >
-                {numPages && Array.from({ length: numPages }, (_, index) => (
-                  <div key={index} className="shadow-lg">
-                    <Page
-                      pageNumber={index + 1}
-                      width={pageWidth}
-                      onLoadSuccess={index === 0 ? onFirstPageLoadSuccess : undefined}
-                      renderTextLayer={false}
-                      renderAnnotationLayer={false}
-                      loading={
-                        <div className="flex items-center justify-center h-64 bg-white" style={{ width: pageWidth }}>
-                          <p className="text-gray-500">Chargement de la page {index + 1}...</p>
+                {numPages && Array.from({ length: numPages }, (_, index) => {
+                  const pageNumber = index + 1;
+                  const pageHeight = originalPageSize ? (pageWidth / originalPageSize.width) * originalPageSize.height : 0;
+                  return (
+                    <div key={index} className="shadow-lg relative">
+                      <Page
+                        pageNumber={pageNumber}
+                        width={pageWidth}
+                        onLoadSuccess={index === 0 ? onFirstPageLoadSuccess : undefined}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        loading={
+                          <div className="flex items-center justify-center h-64 bg-white" style={{ width: pageWidth }}>
+                            <p className="text-gray-500">Chargement de la page {pageNumber}...</p>
+                          </div>
+                        }
+                      />
+                      {/* Per-page annotation canvas */}
+                      {!loading && renderAnnotations && pageHeight > 0 && (
+                        <div className="absolute top-0 left-0 w-full h-full pointer-events-auto">
+                          {renderAnnotations(pageNumber, pageWidth, pageHeight)}
                         </div>
-                      }
-                    />
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </Document>
-              {/* Single annotation canvas overlay for entire document */}
-              {!loading && renderAnnotations && (
-                <div className="absolute top-0 left-0 w-full h-full pointer-events-auto">
-                  {renderAnnotations()}
-                </div>
-              )}
             </div>
           )}
         </div>

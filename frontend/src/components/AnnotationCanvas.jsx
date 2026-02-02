@@ -10,6 +10,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   onCanvasChange,
   initialData,
   onHistoryChange,
+  onFocus,
   readOnly = false,
 }, ref) {
   const canvasRef = useRef(null);
@@ -205,6 +206,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     const canvas = fabricRef.current;
 
     const handleMouseDown = (opt) => {
+      // Notify parent that this canvas is now active
+      onFocus?.();
+
       if (!activeTool || activeTool === 'select') return;
 
       // Don't start drawing if clicking on an existing object (allow selection/resize)
@@ -459,7 +463,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
-  }, [activeTool, activeColor, saveToHistory, readOnly, width]);
+  }, [activeTool, activeColor, saveToHistory, readOnly, width, onFocus]);
 
   // Update color of selected objects when activeColor changes
   useEffect(() => {

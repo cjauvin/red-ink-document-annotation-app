@@ -4,12 +4,10 @@ import { getSharedDocument, getDocumentFileUrl } from '../api/client';
 import { DocumentViewer } from './DocumentViewer';
 import { AnnotationCanvas } from './AnnotationCanvas';
 
-const GLOBAL_PAGE = 0;
-
 export function SharedView() {
   const { hash } = useParams();
   const [document, setDocument] = useState(null);
-  const [annotationData, setAnnotationData] = useState(null);
+  const [annotationsMap, setAnnotationsMap] = useState({});  // { pageNumber: annotationData }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [documentDimensions, setDocumentDimensions] = useState(null);
@@ -19,8 +17,14 @@ export function SharedView() {
       try {
         const data = await getSharedDocument(hash);
         setDocument(data.document);
-        const globalAnnotation = data.annotations.find((a) => a.page_number === GLOBAL_PAGE);
-        setAnnotationData(globalAnnotation?.annotation_data || null);
+        // Build map of annotations by page number
+        const map = {};
+        data.annotations.forEach((a) => {
+          if (a.page_number > 0) {  // Skip legacy global annotations (page 0)
+            map[a.page_number] = a.annotation_data;
+          }
+        });
+        setAnnotationsMap(map);
       } catch (err) {
         setError(err.message || 'Document not found');
       } finally {
@@ -35,19 +39,19 @@ export function SharedView() {
     setDocumentDimensions(dims);
   }, []);
 
-  const renderAnnotations = useCallback(() => {
+  const renderAnnotations = useCallback((pageNumber, pageWidth, pageHeight) => {
     if (!documentDimensions) return null;
 
     return (
       <AnnotationCanvas
-        width={documentDimensions.width}
-        height={documentDimensions.height}
+        width={pageWidth}
+        height={pageHeight}
         scale={documentDimensions.scale}
-        initialData={annotationData}
+        initialData={annotationsMap[pageNumber] || null}
         readOnly
       />
     );
-  }, [documentDimensions, annotationData]);
+  }, [documentDimensions, annotationsMap]);
 
   if (loading) {
     return (
@@ -98,7 +102,7 @@ export function SharedView() {
           onDocumentDimensions={handleDocumentDimensions}
           renderAnnotations={renderAnnotations}
           readOnly
-          annotationCount={annotationData?.objects?.length || 0}
+          annotationCount={Object.values(annotationsMap).reduce((sum, data) => sum + (data?.objects?.length || 0), 0)}
         />
       </div>
     </div>
