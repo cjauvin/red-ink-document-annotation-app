@@ -56,46 +56,45 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     }
   }, []);
 
-  // Normalize annotation data to scale=1 for storage
-  // For non-groups: dimensions are already in current scale, just divide by scale
-  // For groups (arrows): scaleX/scaleY are used for zoom, bake them and reset to 1
+  // Normalize annotation data to percentages (0-1) for storage
+  // This ensures annotations appear at the same relative position on any device
   const normalizeData = useCallback((json) => {
-    if (!json || !json.objects || currentScaleRef.current === 1) return json;
-
-    const s = currentScaleRef.current;
+    if (!json || !json.objects || !width || !height) return json;
 
     const normalizeObject = (obj) => {
+      // Get effective scale factors for baking
+      const effectiveScaleX = obj.scaleX || 1;
+      const effectiveScaleY = obj.scaleY || 1;
+
       const normalized = {
         ...obj,
-        left: obj.left / s,
-        top: obj.top / s,
+        // Position as percentage of canvas dimensions
+        left: obj.left / width,
+        top: obj.top / height,
+        // Reset scale to 1 after baking into dimensions
+        scaleX: 1,
+        scaleY: 1,
       };
 
-      // For groups (arrows), bake scaleX/scaleY and reset to 1
-      if (obj.type === 'group') {
-        const effectiveScaleX = obj.scaleX || 1;
-        const effectiveScaleY = obj.scaleY || 1;
-        // Bake scale into width/height
-        if (obj.width) normalized.width = (obj.width * effectiveScaleX) / s;
-        if (obj.height) normalized.height = (obj.height * effectiveScaleY) / s;
-        normalized.scaleX = 1;
-        normalized.scaleY = 1;
-        // Don't normalize children - they use group-relative coordinates
-      } else {
-        // For non-groups, dimensions are already scaled, just normalize
-        if (obj.width) normalized.width = obj.width / s;
-        if (obj.height) normalized.height = obj.height / s;
-        if (obj.fontSize) normalized.fontSize = obj.fontSize / s;
-        if (obj.x1 !== undefined) normalized.x1 = obj.x1 / s;
-        if (obj.y1 !== undefined) normalized.y1 = obj.y1 / s;
-        if (obj.x2 !== undefined) normalized.x2 = obj.x2 / s;
-        if (obj.y2 !== undefined) normalized.y2 = obj.y2 / s;
-        // Keep scaleX/scaleY as-is for user-applied scaling
-      }
+      // Bake scaleX/scaleY into dimensions and normalize to percentages
+      // Use width as reference for horizontal dims, height for vertical
+      if (obj.width) normalized.width = (obj.width * effectiveScaleX) / width;
+      if (obj.height) normalized.height = (obj.height * effectiveScaleY) / height;
 
-      // Common properties
-      if (obj.strokeWidth) normalized.strokeWidth = obj.strokeWidth / s;
-      if (obj.radius) normalized.radius = obj.radius / s;
+      // Font size as percentage of height (for consistent text scaling)
+      if (obj.fontSize) normalized.fontSize = (obj.fontSize * effectiveScaleY) / height;
+
+      // Line coordinates as percentages
+      if (obj.x1 !== undefined) normalized.x1 = (obj.x1 * effectiveScaleX) / width;
+      if (obj.y1 !== undefined) normalized.y1 = (obj.y1 * effectiveScaleY) / height;
+      if (obj.x2 !== undefined) normalized.x2 = (obj.x2 * effectiveScaleX) / width;
+      if (obj.y2 !== undefined) normalized.y2 = (obj.y2 * effectiveScaleY) / height;
+
+      // Stroke width as percentage of width
+      if (obj.strokeWidth) normalized.strokeWidth = (obj.strokeWidth * effectiveScaleX) / width;
+
+      // Radius as percentage of width
+      if (obj.radius) normalized.radius = (obj.radius * effectiveScaleX) / width;
 
       return normalized;
     };
@@ -104,7 +103,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       ...json,
       objects: json.objects.map(normalizeObject),
     };
-  }, []);
+  }, [width, height]);
 
   // Expose undo and clear methods to parent
   useImperativeHandle(ref, () => ({
@@ -142,40 +141,40 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     },
   }), [onCanvasChange, onHistoryChange, normalizeData, configureTextbox]);
 
-  // Denormalize annotation data from scale=1 to current scale
-  const denormalizeData = useCallback((json, targetScale) => {
-    if (!json || !json.objects || targetScale === 1) return json;
+  // Denormalize annotation data from percentages to pixel coordinates
+  // targetWidth/targetHeight are the canvas dimensions on the current device
+  const denormalizeData = useCallback((json, targetWidth, targetHeight) => {
+    if (!json || !json.objects || !targetWidth || !targetHeight) return json;
 
     const denormalizeObject = (obj) => {
       const denormalized = {
         ...obj,
-        left: obj.left * targetScale,
-        top: obj.top * targetScale,
+        // Convert percentages back to pixel coordinates
+        left: obj.left * targetWidth,
+        top: obj.top * targetHeight,
+        // scaleX/scaleY are stored as 1
+        scaleX: 1,
+        scaleY: 1,
       };
 
-      // For groups (arrows), width/height were baked, scale them
-      // scaleX/scaleY are stored as 1, keep them as 1
-      if (obj.type === 'group') {
-        if (obj.width) denormalized.width = obj.width * targetScale;
-        if (obj.height) denormalized.height = obj.height * targetScale;
-        denormalized.scaleX = 1;
-        denormalized.scaleY = 1;
-        // Don't denormalize children - they use group-relative coordinates
-      } else {
-        // For non-groups, scale dimensions
-        if (obj.width) denormalized.width = obj.width * targetScale;
-        if (obj.height) denormalized.height = obj.height * targetScale;
-        if (obj.fontSize) denormalized.fontSize = obj.fontSize * targetScale;
-        if (obj.x1 !== undefined) denormalized.x1 = obj.x1 * targetScale;
-        if (obj.y1 !== undefined) denormalized.y1 = obj.y1 * targetScale;
-        if (obj.x2 !== undefined) denormalized.x2 = obj.x2 * targetScale;
-        if (obj.y2 !== undefined) denormalized.y2 = obj.y2 * targetScale;
-        // Keep scaleX/scaleY as-is for user-applied scaling
-      }
+      // Convert dimensions from percentages to pixels
+      if (obj.width) denormalized.width = obj.width * targetWidth;
+      if (obj.height) denormalized.height = obj.height * targetHeight;
 
-      // Common properties
-      if (obj.strokeWidth) denormalized.strokeWidth = obj.strokeWidth * targetScale;
-      if (obj.radius) denormalized.radius = obj.radius * targetScale;
+      // Font size from percentage of height
+      if (obj.fontSize) denormalized.fontSize = obj.fontSize * targetHeight;
+
+      // Line coordinates from percentages
+      if (obj.x1 !== undefined) denormalized.x1 = obj.x1 * targetWidth;
+      if (obj.y1 !== undefined) denormalized.y1 = obj.y1 * targetHeight;
+      if (obj.x2 !== undefined) denormalized.x2 = obj.x2 * targetWidth;
+      if (obj.y2 !== undefined) denormalized.y2 = obj.y2 * targetHeight;
+
+      // Stroke width from percentage of width
+      if (obj.strokeWidth) denormalized.strokeWidth = obj.strokeWidth * targetWidth;
+
+      // Radius from percentage of width
+      if (obj.radius) denormalized.radius = obj.radius * targetWidth;
 
       return denormalized;
     };
@@ -202,8 +201,8 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
     // Load initial data immediately after canvas creation
     if (initialData && initialData.objects && initialData.objects.length > 0) {
-      // Denormalize from scale=1 to current scale
-      const denormalized = denormalizeData(initialData, scale);
+      // Denormalize from percentages to pixel coordinates
+      const denormalized = denormalizeData(initialData, width, height);
 
       fabric.util.enlivenObjects(denormalized.objects).then((objects) => {
         objects.forEach((obj) => {
