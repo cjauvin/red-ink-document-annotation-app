@@ -21,6 +21,12 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const historyRef = useRef([]);
   const currentScaleRef = useRef(scale);
   const justExitedTextEditRef = useRef(false);
+  const onFocusRef = useRef(onFocus);
+
+  // Keep onFocus ref updated without triggering re-renders
+  useEffect(() => {
+    onFocusRef.current = onFocus;
+  }, [onFocus]);
 
   // Configure textbox objects with uniform scaling and appropriate controls
   const configureTextbox = useCallback((obj) => {
@@ -207,7 +213,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
     const handleMouseDown = (opt) => {
       // Notify parent that this canvas is now active
-      onFocus?.();
+      onFocusRef.current?.();
 
       if (!activeTool || activeTool === 'select') return;
 
@@ -518,7 +524,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
-  }, [activeTool, activeColor, saveToHistory, readOnly, width, height, onFocus]);
+  }, [activeTool, activeColor, saveToHistory, readOnly, width, height]);
 
   // Update color of selected objects when activeColor changes
   useEffect(() => {
