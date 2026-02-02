@@ -21,6 +21,24 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const currentScaleRef = useRef(scale);
   const justExitedTextEditRef = useRef(false);
 
+  // Configure textbox objects with uniform scaling and corner-only controls
+  const configureTextbox = useCallback((obj) => {
+    if (obj.type === 'textbox') {
+      obj.lockUniScaling = true;
+      obj.setControlsVisibility({
+        ml: false,
+        mr: false,
+        mt: false,
+        mb: false,
+        tl: true,
+        tr: true,
+        bl: true,
+        br: true,
+        mtr: true,
+      });
+    }
+  }, []);
+
   // Normalize annotation data to scale=1 for storage
   const normalizeData = useCallback((json) => {
     if (!json || !json.objects || currentScaleRef.current === 1) return json;
@@ -49,7 +67,10 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       fabricRef.current.clear();
       if (previousState.objects && previousState.objects.length > 0) {
         fabric.util.enlivenObjects(previousState.objects).then((objects) => {
-          objects.forEach((obj) => fabricRef.current.add(obj));
+          objects.forEach((obj) => {
+            configureTextbox(obj);
+            fabricRef.current.add(obj);
+          });
           fabricRef.current.renderAll();
         });
       }
@@ -68,7 +89,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       // Normalize before sending to parent (though clear is already empty)
       onCanvasChange?.(normalizeData(json));
     },
-  }), [onCanvasChange, onHistoryChange, normalizeData]);
+  }), [onCanvasChange, onHistoryChange, normalizeData, configureTextbox]);
 
   // Denormalize annotation data from scale=1 to current scale
   const denormalizeData = useCallback((json, targetScale) => {
@@ -110,6 +131,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
             obj.selectable = false;
             obj.evented = false;
           }
+          configureTextbox(obj);
           canvas.add(obj);
         });
         canvas.renderAll();
@@ -226,8 +248,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           editable: true,
           originX: 'left',
           originY: 'top',
+          lockUniScaling: true,  // Force uniform scaling (both directions at once)
         });
-        // Disable side handles (which change width) - only use corners (which change scale)
+        // Disable side handles - only use corners for uniform scaling
         text.setControlsVisibility({
           ml: false,  // middle left - disabled
           mr: false,  // middle right - disabled
