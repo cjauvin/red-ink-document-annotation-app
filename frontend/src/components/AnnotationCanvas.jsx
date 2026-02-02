@@ -523,6 +523,18 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           }
         }
 
+        // Check if rectangle is too small (minimum 20px on both dimensions)
+        if (obj.type === 'rect') {
+          const minRectSize = 20;
+          if (obj.width < minRectSize && obj.height < minRectSize) {
+            // Rectangle too small - remove it
+            canvas.remove(obj);
+            tempObjectRef.current = null;
+            canvas.requestRenderAll();
+            return;
+          }
+        }
+
         // Make the object selectable and interactive now that drawing is complete
         obj.selectable = true;
         obj.evented = true;
