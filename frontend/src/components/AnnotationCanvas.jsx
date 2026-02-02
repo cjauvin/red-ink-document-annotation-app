@@ -216,10 +216,10 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
       // Fabric.js v6 uses scenePoint instead of getPointer
       const rawPointer = opt.scenePoint || opt.pointer;
-      // Clamp x coordinate to canvas boundaries (0 to width)
+      // Clamp coordinates to canvas boundaries
       const pointer = {
         x: Math.max(0, Math.min(rawPointer.x, width)),
-        y: rawPointer.y,
+        y: Math.max(0, Math.min(rawPointer.y, height)),
       };
       isDrawingRef.current = true;
       startPointRef.current = pointer;
@@ -290,10 +290,10 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
       // Fabric.js v6 uses scenePoint instead of getPointer
       const rawPointer = opt.scenePoint || opt.pointer;
-      // Clamp x coordinate to canvas boundaries (0 to width)
+      // Clamp coordinates to canvas boundaries
       const pointer = {
         x: Math.max(0, Math.min(rawPointer.x, width)),
-        y: rawPointer.y,
+        y: Math.max(0, Math.min(rawPointer.y, height)),
       };
       const start = startPointRef.current;
 
@@ -390,7 +390,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           const rawPointer = opt.scenePoint || opt.pointer;
           const endPoint = {
             x: Math.max(0, Math.min(rawPointer.x, width)),
-            y: rawPointer.y,
+            y: Math.max(0, Math.min(rawPointer.y, height)),
           };
           const length = Math.sqrt(
             Math.pow(endPoint.x - startPoint.x, 2) +
@@ -426,7 +426,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     canvas.on('mouse:move', handleMouseMove);
     canvas.on('mouse:up', handleMouseUp);
 
-    // Constrain objects to horizontal boundaries when moving
+    // Constrain objects to canvas boundaries when moving
     const handleObjectMoving = (opt) => {
       const obj = opt.target;
       const boundingRect = obj.getBoundingRect();
@@ -439,10 +439,64 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       if (boundingRect.left + boundingRect.width > width) {
         obj.left = obj.left - (boundingRect.left + boundingRect.width - width);
       }
+      // Constrain top edge
+      if (boundingRect.top < 0) {
+        obj.top = obj.top - boundingRect.top;
+      }
+      // Constrain bottom edge
+      if (boundingRect.top + boundingRect.height > height) {
+        obj.top = obj.top - (boundingRect.top + boundingRect.height - height);
+      }
 
       obj.setCoords();
     };
     canvas.on('object:moving', handleObjectMoving);
+
+    // Constrain objects to canvas boundaries when scaling
+    const handleObjectScaling = (opt) => {
+      const obj = opt.target;
+      const boundingRect = obj.getBoundingRect();
+
+      let constrained = false;
+
+      // If scaling would push object outside boundaries, limit the scale
+      if (boundingRect.left < 0 || boundingRect.left + boundingRect.width > width ||
+          boundingRect.top < 0 || boundingRect.top + boundingRect.height > height) {
+
+        // Calculate maximum allowed scale
+        const maxScaleX = Math.min(
+          obj.left / (obj.width / 2 * (obj.originX === 'center' ? 1 : 0) || 1),
+          (width - obj.left) / (obj.width / 2 || 1)
+        );
+        const maxScaleY = Math.min(
+          obj.top / (obj.height / 2 * (obj.originY === 'center' ? 1 : 0) || 1),
+          (height - obj.top) / (obj.height / 2 || 1)
+        );
+
+        // Clamp to boundaries
+        if (boundingRect.left < 0) {
+          obj.left = obj.left - boundingRect.left;
+          constrained = true;
+        }
+        if (boundingRect.left + boundingRect.width > width) {
+          obj.left = obj.left - (boundingRect.left + boundingRect.width - width);
+          constrained = true;
+        }
+        if (boundingRect.top < 0) {
+          obj.top = obj.top - boundingRect.top;
+          constrained = true;
+        }
+        if (boundingRect.top + boundingRect.height > height) {
+          obj.top = obj.top - (boundingRect.top + boundingRect.height - height);
+          constrained = true;
+        }
+      }
+
+      if (constrained) {
+        obj.setCoords();
+      }
+    };
+    canvas.on('object:scaling', handleObjectScaling);
 
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
@@ -460,10 +514,11 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
       canvas.off('object:moving', handleObjectMoving);
+      canvas.off('object:scaling', handleObjectScaling);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
-  }, [activeTool, activeColor, saveToHistory, readOnly, width, onFocus]);
+  }, [activeTool, activeColor, saveToHistory, readOnly, width, height, onFocus]);
 
   // Update color of selected objects when activeColor changes
   useEffect(() => {
