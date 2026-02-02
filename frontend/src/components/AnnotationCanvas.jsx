@@ -618,8 +618,15 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     canvas.on('object:modified', saveToHistory);
 
     // Save when text editing is finished
-    const handleTextEditEnd = () => {
-      saveToHistory();
+    const handleTextEditEnd = (e) => {
+      const textbox = e.target;
+      // Remove empty text annotations
+      if (textbox && (!textbox.text || textbox.text.trim() === '')) {
+        canvas.remove(textbox);
+        canvas.requestRenderAll();
+      } else {
+        saveToHistory();
+      }
       // Flag to consume the next click instead of creating new text
       justExitedTextEditRef.current = true;
     };
