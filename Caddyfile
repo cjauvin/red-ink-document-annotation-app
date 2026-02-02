@@ -1,0 +1,3 @@
+encrerouge.ink {
+    reverse_proxy frontend:80
+}

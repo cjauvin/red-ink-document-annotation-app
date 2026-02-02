@@ -1,11 +1,22 @@
 services:
-  frontend:
-    build: ./frontend
+  caddy:
+    image: caddy:alpine
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
     depends_on:
       - backend
     restart: unless-stopped
+    # No ports exposed - only accessible via Caddy proxy
 
   backend:
     build: ./backend
@@ -16,3 +27,6 @@ services:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     # No ports exposed - only accessible via nginx proxy
+
+volumes:
+  caddy_data:
