@@ -1,5 +1,8 @@
 # Red Ink - Homework Annotation App
 
+## Development Workflow
+- **Commit after important changes**: Every time you make an important change (new feature, bug fix, refactor), commit it immediately with a descriptive message.
+
 ## Project Overview
 A web application for teachers/graders to upload homework documents (PDF/DOCX), annotate them with simple drawing tools (arrows, boxes, text), and share the annotated result via secret URLs.
 

@@ -6,7 +6,9 @@ import 'react-pdf/dist/Page/TextLayer.css';
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-const ZOOM_LEVELS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2];
+// Internal scale values (capped at 0.5 for performance)
+// Displayed as 2x: 50% → 100%, 33% → 66%, 25% → 50%
+const ZOOM_LEVELS = [0.25, 0.33, 0.5];
 const FIT_WIDTH = 'fit';
 const ZOOM_STORAGE_KEY = 'red-ink-zoom-level';
 
@@ -18,6 +20,10 @@ const getInitialZoom = () => {
     const parsed = parseFloat(stored);
     if (!isNaN(parsed) && ZOOM_LEVELS.includes(parsed)) {
       return parsed;
+    }
+    // If stored value is out of new range (e.g., old 0.67+), use max
+    if (!isNaN(parsed) && parsed > 0.5) {
+      return 0.5;
     }
   } catch (e) {
     // localStorage not available
@@ -162,9 +168,11 @@ export function DocumentViewer({
   const getZoomDisplay = () => {
     if (zoom === FIT_WIDTH) {
       const fitScale = calculateFitScale();
-      return `Ajuster (${Math.round(fitScale * 100)}%)`;
+      // Display at 2x since we capped internal scale at 0.5
+      return `Ajuster (${Math.round(fitScale * 200)}%)`;
     }
-    return `${Math.round(zoom * 100)}%`;
+    // Display at 2x since we capped internal scale at 0.5
+    return `${Math.round(zoom * 200)}%`;
   };
 
   const pageWidth = calculatePageWidth();

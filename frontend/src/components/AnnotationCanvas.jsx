@@ -93,6 +93,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     const canvas = new fabric.Canvas(canvasRef.current, {
       selection: !readOnly,
       isDrawingMode: false,
+      enableRetinaScaling: false,
     });
 
     fabricRef.current = canvas;
@@ -263,18 +264,19 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       }
 
       if (activeTool === 'arrow') {
-        // Create arrow as a group of line and triangle
-        const angle = Math.atan2(pointer.y - start.y, pointer.x - start.x);
+        // Clamp arrow endpoint to keep it inside canvas
         const headLength = 15;
+        const clampedEndX = Math.max(headLength / 2, Math.min(pointer.x, width - headLength / 2));
+        const angle = Math.atan2(pointer.y - start.y, clampedEndX - start.x);
 
-        const line = new fabric.Line([start.x, start.y, pointer.x, pointer.y], {
+        const line = new fabric.Line([start.x, start.y, clampedEndX, pointer.y], {
           stroke: activeColor,
           strokeWidth: 2,
           selectable: false,
         });
 
         const triangle = new fabric.Triangle({
-          left: pointer.x,
+          left: clampedEndX,
           top: pointer.y,
           width: headLength,
           height: headLength,
@@ -296,16 +298,21 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         canvas.add(group);
         canvas.discardActiveObject();
       } else if (activeTool === 'box') {
-        const left = Math.min(start.x, pointer.x);
+        const strokeWidth = 2;
+        // Clamp coordinates to keep stroke inside canvas
+        const clampedStartX = Math.max(strokeWidth / 2, Math.min(start.x, width - strokeWidth / 2));
+        const clampedPointerX = Math.max(strokeWidth / 2, Math.min(pointer.x, width - strokeWidth / 2));
+
+        const left = Math.min(clampedStartX, clampedPointerX);
         const top = Math.min(start.y, pointer.y);
-        const width = Math.abs(pointer.x - start.x);
-        const height = Math.abs(pointer.y - start.y);
+        const rectWidth = Math.abs(clampedPointerX - clampedStartX);
+        const rectHeight = Math.abs(pointer.y - start.y);
 
         const rect = new fabric.Rect({
           left,
           top,
-          width: width || 1,
-          height: height || 1,
+          width: rectWidth || 1,
+          height: rectHeight || 1,
           fill: 'transparent',
           stroke: activeColor,
           strokeWidth: 2,
