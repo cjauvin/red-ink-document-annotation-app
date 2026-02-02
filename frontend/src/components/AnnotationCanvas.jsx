@@ -22,7 +22,16 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const currentScaleRef = useRef(scale);
   const justExitedTextEditRef = useRef(false);
   const onFocusRef = useRef(onFocus);
+  const isMountedRef = useRef(true);
   const [canvasReady, setCanvasReady] = useState(false);
+
+  // Track mounted state to prevent state updates after unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Keep onFocus ref updated without triggering re-renders
   useEffect(() => {
@@ -67,7 +76,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   // Expose undo and clear methods to parent
   useImperativeHandle(ref, () => ({
     undo: () => {
-      if (!fabricRef.current || historyRef.current.length <= 1) return;
+      if (!fabricRef.current || historyRef.current.length <= 1 || !isMountedRef.current) return;
 
       historyRef.current.pop();
       const previousState = historyRef.current[historyRef.current.length - 1];
@@ -75,27 +84,28 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       fabricRef.current.clear();
       if (previousState.objects && previousState.objects.length > 0) {
         fabric.util.enlivenObjects(previousState.objects).then((objects) => {
+          if (!isMountedRef.current) return;
           objects.forEach((obj) => {
             configureTextbox(obj);
-            fabricRef.current.add(obj);
+            fabricRef.current?.add(obj);
           });
-          fabricRef.current.renderAll();
+          fabricRef.current?.renderAll();
         });
       }
 
-      onHistoryChange?.(historyRef.current.length > 1);
+      if (isMountedRef.current) onHistoryChange?.(historyRef.current.length > 1);
       // Normalize before sending to parent
-      onCanvasChange?.(normalizeData(previousState));
+      if (isMountedRef.current) onCanvasChange?.(normalizeData(previousState));
     },
     clear: () => {
-      if (!fabricRef.current) return;
+      if (!fabricRef.current || !isMountedRef.current) return;
 
       fabricRef.current.clear();
       const json = fabricRef.current.toJSON();
       historyRef.current.push(json);
-      onHistoryChange?.(historyRef.current.length > 1);
+      if (isMountedRef.current) onHistoryChange?.(historyRef.current.length > 1);
       // Normalize before sending to parent (though clear is already empty)
-      onCanvasChange?.(normalizeData(json));
+      if (isMountedRef.current) onCanvasChange?.(normalizeData(json));
     },
   }), [onCanvasChange, onHistoryChange, normalizeData, configureTextbox]);
 
@@ -145,11 +155,11 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         });
         canvas.renderAll();
         historyRef.current = [canvas.toJSON()];
-        onHistoryChange?.(historyRef.current.length > 1);
+        if (isMountedRef.current) onHistoryChange?.(historyRef.current.length > 1);
       });
     } else {
       historyRef.current = [canvas.toJSON()];
-      onHistoryChange?.(false);
+      if (isMountedRef.current) onHistoryChange?.(false);
     }
 
     return () => {
@@ -196,15 +206,15 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
   // Save canvas state to history
   const saveToHistory = useCallback(() => {
-    if (!fabricRef.current) return;
+    if (!fabricRef.current || !isMountedRef.current) return;
 
     const json = fabricRef.current.toJSON();
     historyRef.current.push(json);
-    onHistoryChange?.(historyRef.current.length > 1);
+    if (isMountedRef.current) onHistoryChange?.(historyRef.current.length > 1);
 
     // Normalize before sending to parent (store at scale=1)
     const normalizedJson = normalizeData(json);
-    onCanvasChange?.(normalizedJson);
+    if (isMountedRef.current) onCanvasChange?.(normalizedJson);
   }, [onCanvasChange, onHistoryChange, normalizeData]);
 
   // Handle mouse events for drawing
