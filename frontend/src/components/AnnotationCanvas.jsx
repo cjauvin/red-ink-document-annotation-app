@@ -61,15 +61,43 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     if (!json || !json.objects || currentScaleRef.current === 1) return json;
 
     const s = currentScaleRef.current;
-    return {
-      ...json,
-      objects: json.objects.map((obj) => ({
+
+    const normalizeObject = (obj) => {
+      const normalized = {
         ...obj,
         left: obj.left / s,
         top: obj.top / s,
         scaleX: (obj.scaleX || 1) / s,
         scaleY: (obj.scaleY || 1) / s,
-      })),
+      };
+
+      // Scale width/height for shapes
+      if (obj.width) normalized.width = obj.width / s;
+      if (obj.height) normalized.height = obj.height / s;
+
+      // Scale font size for text
+      if (obj.fontSize) normalized.fontSize = obj.fontSize / s;
+
+      // Scale line coordinates
+      if (obj.x1 !== undefined) normalized.x1 = obj.x1 / s;
+      if (obj.y1 !== undefined) normalized.y1 = obj.y1 / s;
+      if (obj.x2 !== undefined) normalized.x2 = obj.x2 / s;
+      if (obj.y2 !== undefined) normalized.y2 = obj.y2 / s;
+
+      // Scale stroke width
+      if (obj.strokeWidth) normalized.strokeWidth = obj.strokeWidth / s;
+
+      // Handle group objects (arrows)
+      if (obj.objects && Array.isArray(obj.objects)) {
+        normalized.objects = obj.objects.map(normalizeObject);
+      }
+
+      return normalized;
+    };
+
+    return {
+      ...json,
+      objects: json.objects.map(normalizeObject),
     };
   }, []);
 
@@ -113,15 +141,42 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const denormalizeData = useCallback((json, targetScale) => {
     if (!json || !json.objects || targetScale === 1) return json;
 
-    return {
-      ...json,
-      objects: json.objects.map((obj) => ({
+    const denormalizeObject = (obj) => {
+      const denormalized = {
         ...obj,
         left: obj.left * targetScale,
         top: obj.top * targetScale,
         scaleX: (obj.scaleX || 1) * targetScale,
         scaleY: (obj.scaleY || 1) * targetScale,
-      })),
+      };
+
+      // Scale width/height for shapes
+      if (obj.width) denormalized.width = obj.width * targetScale;
+      if (obj.height) denormalized.height = obj.height * targetScale;
+
+      // Scale font size for text
+      if (obj.fontSize) denormalized.fontSize = obj.fontSize * targetScale;
+
+      // Scale line coordinates
+      if (obj.x1 !== undefined) denormalized.x1 = obj.x1 * targetScale;
+      if (obj.y1 !== undefined) denormalized.y1 = obj.y1 * targetScale;
+      if (obj.x2 !== undefined) denormalized.x2 = obj.x2 * targetScale;
+      if (obj.y2 !== undefined) denormalized.y2 = obj.y2 * targetScale;
+
+      // Scale stroke width
+      if (obj.strokeWidth) denormalized.strokeWidth = obj.strokeWidth * targetScale;
+
+      // Handle group objects (arrows)
+      if (obj.objects && Array.isArray(obj.objects)) {
+        denormalized.objects = obj.objects.map(denormalizeObject);
+      }
+
+      return denormalized;
+    };
+
+    return {
+      ...json,
+      objects: json.objects.map(denormalizeObject),
     };
   }, []);
 
