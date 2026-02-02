@@ -1,4 +1,8 @@
-# Red Ink - Homework Annotation App
+<p align="center">
+  <img src="encre-rouge-logo.png" alt="Encre Rouge" width="400">
+</p>
+
+# Encre Rouge - Document Annotation App
 
 A web application for teachers/graders to upload homework documents (PDF/DOCX), annotate them with drawing tools (arrows, boxes, text), and share the annotated result via secret URLs.
 
