@@ -1,4 +1,5 @@
 import os
+import secrets
 import uuid
 import subprocess
 from pathlib import Path
@@ -6,6 +7,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -18,11 +20,30 @@ from ..schemas import (
 )
 
 router = APIRouter()
+security = HTTPBasic()
 
 UPLOADS_DIR = Path("uploads")
 UPLOADS_DIR.mkdir(exist_ok=True)
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB in bytes
+
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify admin credentials using HTTP Basic Auth."""
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if not admin_password:
+        raise HTTPException(status_code=500, detail="ADMIN_PASSWORD not configured")
+
+    # Use secrets.compare_digest to prevent timing attacks
+    password_correct = secrets.compare_digest(credentials.password, admin_password)
+
+    if not password_correct:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 
 def convert_docx_to_pdf(input_path: Path, output_dir: Path) -> Path:
@@ -119,8 +140,11 @@ async def upload_document(
 
 
 @router.get("/admin/all")
-def get_all_documents(db: Session = Depends(get_db)):
-    """Get all documents in the system (admin endpoint)."""
+def get_all_documents(
+    admin: str = Depends(verify_admin),
+    db: Session = Depends(get_db),
+):
+    """Get all documents in the system (admin endpoint, protected by HTTP Basic Auth)."""
     documents = (
         db.query(Document)
         .order_by(Document.updated_at.desc())
