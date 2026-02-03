@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="encre-rouge-logo.png" alt="Encre Rouge" width="400">
+  <img src="frontend/public/encre-rouge-logo.png" alt="Encre Rouge" width="400">
 </p>
 
 # Encre Rouge - Document Annotation App
