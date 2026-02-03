@@ -6,6 +6,7 @@ import { AnnotationCanvas } from './components/AnnotationCanvas';
 import { Toolbar } from './components/Toolbar';
 import { SharedView } from './components/SharedView';
 import { MyDocuments } from './components/MyDocuments';
+import { AdminDocuments } from './components/AdminDocuments';
 import { saveAnnotations, getDocument, getAnnotations, getDocumentFileUrl, getOrCreateUser, getUserToken } from './api/client';
 import debounce from 'lodash/debounce';
 
@@ -263,11 +264,34 @@ function DocumentPage() {
   );
 }
 
+function AdminPage() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto">
+        <div className="pt-12 pb-8 px-8">
+          <div className="flex justify-center mb-4">
+            <Link to="/">
+              <img src="/encre-rouge-logo.png" alt="Encre Rouge" className="h-32" />
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 text-center mb-8">Administration</h1>
+        </div>
+
+        <div className="border-t border-gray-200 px-8 py-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tous les documents</h2>
+          <AdminDocuments />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/document/:id" element={<DocumentPage />} />
         <Route path="/share/:hash" element={<SharedView />} />
       </Routes>

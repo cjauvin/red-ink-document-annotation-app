@@ -118,6 +118,17 @@ async def upload_document(
     return document
 
 
+@router.get("/admin/all")
+def get_all_documents(db: Session = Depends(get_db)):
+    """Get all documents in the system (admin endpoint)."""
+    documents = (
+        db.query(Document)
+        .order_by(Document.updated_at.desc())
+        .all()
+    )
+    return {"documents": documents}
+
+
 @router.get("/{document_id}", response_model=DocumentResponse)
 def get_document(document_id: str, db: Session = Depends(get_db)):
     """Get document metadata."""

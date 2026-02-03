@@ -49,6 +49,16 @@ export async function getUserDocuments(userId) {
   return response.json();
 }
 
+export async function getAllDocuments() {
+  const response = await fetch(`${API_BASE}/documents/admin/all`);
+
+  if (!response.ok) {
+    throw new Error('Failed to get documents');
+  }
+
+  return response.json();
+}
+
 export async function uploadDocument(file, userId = null) {
   const formData = new FormData();
   formData.append('file', file);
