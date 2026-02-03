@@ -22,6 +22,8 @@ router = APIRouter()
 UPLOADS_DIR = Path("uploads")
 UPLOADS_DIR.mkdir(exist_ok=True)
 
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB in bytes
+
 
 def convert_docx_to_pdf(input_path: Path, output_dir: Path) -> Path:
     """Convert DOCX to PDF using LibreOffice headless."""
@@ -71,13 +73,19 @@ async def upload_document(
             status_code=400, detail="Only PDF and DOCX files are supported"
         )
 
+    # Read and check file size
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413, detail="File too large (maximum 5MB)"
+        )
+
     # Generate unique filename
     file_id = str(uuid.uuid4())
     temp_filename = f"{file_id}.{original_type}"
     temp_path = UPLOADS_DIR / temp_filename
 
     # Save uploaded file
-    content = await file.read()
     with open(temp_path, "wb") as f:
         f.write(content)
 

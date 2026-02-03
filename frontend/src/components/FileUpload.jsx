@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { uploadDocument } from '../api/client';
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
 export function FileUpload({ onUploadComplete, userId }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -8,6 +10,12 @@ export function FileUpload({ onUploadComplete, userId }) {
 
   const handleFile = useCallback(async (file) => {
     if (!file) return;
+
+    // Check file size first
+    if (file.size > MAX_FILE_SIZE) {
+      setError('Le fichier dépasse la limite de 5 Mo');
+      return;
+    }
 
     const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     const validExtensions = ['.pdf', '.docx'];
@@ -125,7 +133,7 @@ export function FileUpload({ onUploadComplete, userId }) {
               />
             </label>
             <p className="text-gray-400 text-sm mt-2">
-              PDF ou DOCX jusqu'à 50 Mo
+              PDF ou DOCX jusqu'à 5 Mo
             </p>
           </>
         )}
