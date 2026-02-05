@@ -27,6 +27,12 @@ A web application for teachers/graders to upload homework documents (PDF/DOCX), 
 - **LibreOffice** headless for DOCX → PDF conversion
 - Local filesystem for file storage
 
+### Chrome Extension
+- **Manifest V3** Chrome extension
+- Injects upload buttons on TELUQ university pages
+- Downloads files with user's authenticated session
+- Uploads directly to Red Ink API
+
 ## Prerequisites
 LibreOffice must be installed for DOCX conversion:
 - macOS: `brew install --cask libreoffice`
@@ -60,6 +66,15 @@ red-ink-app/
 │   ├── uploads/              # Stored PDF files
 │   ├── requirements.txt
 │   └── run.py
+├── chrome-extension/
+│   ├── manifest.json         # Extension manifest (v3)
+│   ├── content.js            # Injects buttons on TELUQ pages
+│   ├── content.css           # Button styling
+│   ├── background.js         # Service worker for file handling
+│   ├── popup.html/js         # Extension popup UI
+│   ├── options.html/js       # Settings page
+│   ├── icons/                # Extension icons (16/48/128px)
+│   └── README.md             # Extension documentation
 ├── CLAUDE.md                 # This file
 ├── Caddyfile                 # Caddy reverse proxy config (production)
 └── README.md

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Red Ink Uploader - Options</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      min-width: 400px;
+      background: #f9fafb;
+    }
+
+    h1 {
+      font-size: 18px;
+      color: #111827;
+      margin: 0 0 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h1 svg {
+      color: #EF4444;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    input[type="url"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="url"]:focus {
+      outline: none;
+      border-color: #EF4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    button {
+      background-color: #EF4444;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #DC2626;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .status.success {
+      display: block;
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+
+    .status.error {
+      display: block;
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+
+    .presets {
+      margin-top: 12px;
+    }
+
+    .presets button {
+      background-color: #f3f4f6;
+      color: #374151;
+      padding: 6px 12px;
+      font-size: 12px;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+
+    .presets button:hover {
+      background-color: #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 19V5M5 12l7-7 7 7"/>
+    </svg>
+    Red Ink Uploader
+  </h1>
+
+  <div class="form-group">
+    <label for="apiUrl">Red Ink API URL</label>
+    <input type="url" id="apiUrl" placeholder="http://localhost:8001">
+    <p class="help-text">The URL of your Red Ink backend server (without trailing slash)</p>
+
+    <div class="presets">
+      <button type="button" data-url="http://localhost:8001">Localhost</button>
+      <button type="button" data-url="https://encrerouge.ink">Production</button>
+    </div>
+  </div>
+
+  <button id="save">Save Settings</button>
+
+  <div id="status" class="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>
