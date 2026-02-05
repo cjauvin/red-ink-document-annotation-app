@@ -5,10 +5,19 @@ const FILE_EXTENSIONS = ['.pdf', '.docx', '.doc'];
 
 function isDocumentLink(link) {
   const href = link.href?.toLowerCase() || '';
-  return FILE_EXTENSIONS.some(ext => href.includes(ext));
+  const text = link.textContent?.toLowerCase() || '';
+  // Check both href and link text for file extensions
+  return FILE_EXTENSIONS.some(ext => href.includes(ext) || text.includes(ext));
 }
 
 function getFilenameFromLink(link) {
+  // First, try to get filename from link text (common for dynamic download links)
+  const text = link.textContent?.trim() || '';
+  if (FILE_EXTENSIONS.some(ext => text.toLowerCase().includes(ext))) {
+    return text;
+  }
+
+  // Fall back to extracting from URL
   try {
     const url = new URL(link.href);
     const pathname = url.pathname;
