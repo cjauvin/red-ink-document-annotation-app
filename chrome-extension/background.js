@@ -7,6 +7,28 @@ async function getApiUrl() {
   return result.apiUrl || DEFAULT_API_URL;
 }
 
+async function getUserId() {
+  const result = await chrome.storage.sync.get(['userId']);
+  if (result.userId) {
+    // Verify user still exists
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/api/users/${result.userId}`);
+    if (response.ok) {
+      return result.userId;
+    }
+  }
+
+  // Create new user
+  const apiUrl = await getApiUrl();
+  const response = await fetch(`${apiUrl}/api/users`, { method: 'POST' });
+  if (!response.ok) {
+    throw new Error('Failed to create user');
+  }
+  const user = await response.json();
+  await chrome.storage.sync.set({ userId: user.id });
+  return user.id;
+}
+
 async function downloadFile(url) {
   const response = await fetch(url, {
     credentials: 'include' // Include cookies for authenticated downloads
@@ -21,11 +43,15 @@ async function downloadFile(url) {
 
 async function uploadToRedInk(fileBlob, filename) {
   const apiUrl = await getApiUrl();
+  const userId = await getUserId();
   const formData = new FormData();
   formData.append('file', fileBlob, filename);
 
   const response = await fetch(`${apiUrl}/api/documents/upload`, {
     method: 'POST',
+    headers: {
+      'X-User-Id': userId
+    },
     body: formData
   });
 
@@ -69,10 +95,29 @@ async function handleUpload(fileUrl, filename) {
 
     // Get frontend URL and open document in new tab
     const apiUrl = await getApiUrl();
+    const userId = await getUserId();
     const frontendUrl = getFrontendUrl(apiUrl);
     const documentUrl = `${frontendUrl}/document/${result.id}`;
 
-    chrome.tabs.create({ url: documentUrl });
+    // Open the document in a new tab
+    const tab = await chrome.tabs.create({ url: documentUrl });
+
+    // Wait for the tab to load, then sync the userId to localStorage
+    chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+      if (tabId === tab.id && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(listener);
+        // Inject script to set localStorage
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: (userId) => {
+            localStorage.setItem('red-ink-user-token', userId);
+            // Reload to pick up the new user token
+            window.location.reload();
+          },
+          args: [userId]
+        });
+      }
+    });
 
     return result;
   } catch (error) {
