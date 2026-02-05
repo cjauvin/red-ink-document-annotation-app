@@ -48,6 +48,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+function getFrontendUrl(apiUrl) {
+  // Derive frontend URL from API URL
+  if (apiUrl.includes('localhost:8001')) {
+    return 'http://localhost:5173';
+  } else if (apiUrl.includes('encrerouge.ink')) {
+    return 'https://encrerouge.ink';
+  }
+  // Default: assume frontend is on same host without port
+  return apiUrl.replace(/:\d+$/, '');
+}
+
 async function handleUpload(fileUrl, filename) {
   try {
     // Download the file
@@ -56,24 +67,12 @@ async function handleUpload(fileUrl, filename) {
     // Upload to Red Ink
     const result = await uploadToRedInk(fileBlob, filename);
 
-    // Show success notification
+    // Get frontend URL and open document in new tab
     const apiUrl = await getApiUrl();
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: 'Red Ink',
-      message: `Uploaded: ${filename}`,
-      buttons: [{ title: 'Open in Red Ink' }]
-    });
+    const frontendUrl = getFrontendUrl(apiUrl);
+    const documentUrl = `${frontendUrl}/document/${result.id}`;
 
-    // Store the document URL for the notification click
-    await chrome.storage.local.set({
-      lastUpload: {
-        documentId: result.id,
-        apiUrl: apiUrl,
-        filename: filename
-      }
-    });
+    chrome.tabs.create({ url: documentUrl });
 
     return result;
   } catch (error) {
@@ -88,15 +87,3 @@ async function handleUpload(fileUrl, filename) {
   }
 }
 
-// Handle notification button click
-chrome.notifications.onButtonClicked.addListener(async (notificationId, buttonIndex) => {
-  if (buttonIndex === 0) {
-    const result = await chrome.storage.local.get(['lastUpload']);
-    if (result.lastUpload) {
-      const { documentId, apiUrl } = result.lastUpload;
-      // Open Red Ink with the document
-      const redInkUrl = apiUrl.replace('/api', '').replace(':8001', ':5173');
-      chrome.tabs.create({ url: `${redInkUrl}/document/${documentId}` });
-    }
-  }
-});
