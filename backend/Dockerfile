@@ -1,6 +1,7 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Install LibreOffice for DOCX to PDF conversion
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-writer \
     libreoffice-common \
