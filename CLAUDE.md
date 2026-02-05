@@ -236,3 +236,109 @@ The DocumentViewer uses internal scale values displayed at 2x:
 - Internal 0.625 → 125% display (max)
 
 **Performance note**: Canvas performance degrades non-linearly with size (pixel count = scale²). Testing found that internal scales above ~0.65-0.7 cause sluggish annotation rendering due to Fabric.js redraw overhead. The 0.625 max was chosen as a safe limit that works across different hardware.
+
+## Chrome Extension
+
+### Purpose
+The Chrome extension allows uploading documents directly from TELUQ university pages (`univ.teluq.ca`) to Red Ink without manually downloading and re-uploading files.
+
+### How It Works
+1. **Content script** (`content.js`) runs on `https://univ.teluq.ca/*` pages
+2. Detects PDF/DOCX links by checking both `href` and **link text** (important: TELUQ uses dynamic download URLs like `d_doc.aspx?guid=...` where the filename only appears in the link text)
+3. Injects a small red upload button next to each document link
+4. When clicked, sends message to background service worker
+5. **Background script** (`background.js`) downloads the file using the user's authenticated TELUQ session cookies
+6. Uploads to Red Ink API with `X-User-Id` header for ownership
+7. Opens the document in a new tab and syncs the user ID to frontend localStorage
+
+### Key Design Decisions
+
+#### Link Detection
+TELUQ doesn't use direct PDF URLs. Instead, links look like:
+- **href**: `https://univ.teluq.ca/depot-travaux/download/d_doc.aspx?guid=XXX`
+- **text**: `INF1220-StudentName-Assignment.pdf`
+
+The content script checks BOTH href and text content for file extensions:
+```javascript
+function isDocumentLink(link) {
+  const href = link.href?.toLowerCase() || '';
+  const text = link.textContent?.toLowerCase() || '';
+  return FILE_EXTENSIONS.some(ext => href.includes(ext) || text.includes(ext));
+}
+```
+
+#### User ID Synchronization
+Documents have ownership via `user_id`. The extension maintains its own user ID in `chrome.storage.sync` and syncs it to the frontend:
+
+1. Extension creates/retrieves user ID via `/api/users` endpoint
+2. Sends `X-User-Id` header with upload request
+3. After opening document tab, injects script to set `localStorage['red-ink-user-token']`
+4. Reloads page so frontend recognizes ownership and enables editing
+
+This ensures documents uploaded via extension are editable (not read-only).
+
+#### URL Mapping
+The extension derives frontend URL from API URL:
+- `http://localhost:8001` → `http://localhost:5173` (development)
+- `https://encrerouge.ink` → `https://encrerouge.ink` (production)
+
+### Extension Files
+
+| File | Purpose |
+|------|---------|
+| `manifest.json` | Manifest V3 config, permissions, content script matching |
+| `content.js` | Detects document links, injects upload buttons |
+| `content.css` | Button styling (red, with loading/success/error states) |
+| `background.js` | Service worker: file download, upload, user ID management |
+| `popup.html/js` | Extension popup showing connection status |
+| `options.html/js` | Settings page for API URL configuration |
+| `icons/` | Extension icons (16/48/128px PNG) |
+| `generate_icons.py` | Python script to regenerate icons |
+
+### Permissions Required
+```json
+{
+  "permissions": ["storage", "notifications", "scripting"],
+  "host_permissions": [
+    "https://univ.teluq.ca/*",
+    "http://localhost:8001/*",
+    "http://localhost:5173/*",
+    "https://encrerouge.ink/*"
+  ]
+}
+```
+
+### Installation
+1. Open `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `chrome-extension/` folder
+5. Click extension icon → Settings to configure API URL
+
+### Configuration
+Default API URL: `http://localhost:8001`
+
+Presets available in settings:
+- **Localhost**: `http://localhost:8001`
+- **Production**: `https://encrerouge.ink`
+
+### Troubleshooting
+
+**Button doesn't appear:**
+- Verify you're on `univ.teluq.ca` domain
+- Check that the link text contains `.pdf`, `.docx`, or `.doc`
+- Reload the extension in `chrome://extensions/`
+- Refresh the page
+
+**Upload fails with CORS error:**
+- Check extension is pointing to backend (port 8001), not frontend (port 5173)
+- Verify backend is running
+
+**Document opens in read-only mode:**
+- Extension user ID sync may have failed
+- Check browser console for errors
+- Try reloading the extension and uploading again
+
+**File downloads but upload fails:**
+- Verify you're logged into TELUQ (cookies needed for authenticated download)
+- Check Red Ink backend is running and accessible
