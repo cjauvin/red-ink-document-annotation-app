@@ -31,7 +31,8 @@
     {
       "matches": ["https://univ.teluq.ca/*"],
       "js": ["content.js"],
-      "css": ["content.css"]
+      "css": ["content.css"],
+      "all_frames": true
     }
   ],
   "background": {
