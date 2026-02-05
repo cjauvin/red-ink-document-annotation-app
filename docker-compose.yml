@@ -23,6 +23,8 @@ services:
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/data:/app/data
+    env_file:
+      - ./backend/.env
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
