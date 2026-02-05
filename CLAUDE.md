@@ -282,6 +282,9 @@ The extension derives frontend URL from API URL:
 - `http://localhost:8001` → `http://localhost:5173` (development)
 - `https://encrerouge.ink` → `https://encrerouge.ink` (production)
 
+#### Iframe Support
+TELUQ opens document details in a **fancybox iframe popup**. The manifest uses `"all_frames": true` so the content script runs inside iframes and can inject buttons in the popup.
+
 ### Extension Files
 
 | File | Purpose |
