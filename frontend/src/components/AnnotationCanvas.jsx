@@ -356,7 +356,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         }
 
         // Clamp text position to stay within horizontal bounds
-        const textWidth = 150;
+        const textWidth = 300;
         const clampedX = Math.max(0, Math.min(pointer.x, width - textWidth));
 
         const text = new fabric.Textbox('', {
