@@ -73,7 +73,7 @@ function DocumentPage() {
   const [error, setError] = useState(null);
 
   const [documentDimensions, setDocumentDimensions] = useState(null);
-  const [activeTool, setActiveTool] = useState('arrow');
+  const [activeTool, setActiveTool] = useState('draw');
   const [activeColor, setActiveColor] = useState('#EF4444');
   const [canUndoMap, setCanUndoMap] = useState({});  // { pageNumber: boolean }
   const [activePage, setActivePage] = useState(1);  // Track which page is being edited
