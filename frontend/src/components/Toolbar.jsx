@@ -4,6 +4,7 @@ const TOOLS = [
   { id: 'arrow', label: 'Flèche', icon: '↗', shortcut: '1' },
   { id: 'box', label: 'Rectangle', icon: '□', shortcut: '2' },
   { id: 'text', label: 'Texte', icon: 'T', shortcut: '3' },
+  { id: 'draw', label: 'Trait libre', icon: '✎', shortcut: '4' },
 ];
 
 const COLORS = [

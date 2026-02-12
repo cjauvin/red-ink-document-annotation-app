@@ -321,11 +321,19 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
     const canvas = fabricRef.current;
 
+    // Enable/disable free drawing mode based on active tool
+    canvas.isDrawingMode = activeTool === 'draw';
+    if (canvas.isDrawingMode) {
+      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      canvas.freeDrawingBrush.color = activeColor;
+      canvas.freeDrawingBrush.width = 2;
+    }
+
     const handleMouseDown = (opt) => {
       // Notify parent that this canvas is now active
       onFocusRef.current?.();
 
-      if (!activeTool || activeTool === 'select') return;
+      if (!activeTool || activeTool === 'select' || activeTool === 'draw') return;
 
       // Don't start drawing if clicking on an existing object (allow selection/resize)
       if (opt.target) return;
@@ -626,6 +634,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     };
     canvas.on('object:scaling', handleObjectScaling);
 
+    // Save when a free-drawn path is completed
+    canvas.on('path:created', saveToHistory);
+
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
 
@@ -645,11 +656,13 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     canvas.on('text:editing:exited', handleTextEditEnd);
 
     return () => {
+      canvas.isDrawingMode = false;
       canvas.off('mouse:down', handleMouseDown);
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
       canvas.off('object:moving', handleObjectMoving);
       canvas.off('object:scaling', handleObjectScaling);
+      canvas.off('path:created', saveToHistory);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
@@ -679,6 +692,9 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         } else if (obj.type === 'textbox') {
           // Text: update fill
           obj.set('fill', activeColor);
+        } else if (obj.type === 'path') {
+          // Free-drawn line: update stroke
+          obj.set('stroke', activeColor);
         }
       });
       canvas.requestRenderAll();

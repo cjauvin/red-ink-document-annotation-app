@@ -118,6 +118,7 @@ red-ink-app/
 - **Arrow**: Click and drag to draw directional arrow (minimum 25px length enforced)
 - **Box**: Click and drag to draw rectangle outline
 - **Text**: Click to place text (default width 150px), type content
+- **Draw**: Freehand drawing with pencil brush (2px stroke width)
 - **Colors**: Red (#EF4444), Blue (#3B82F6), Green (#22C55E), Black (#000000)
 - **Undo**: Remove last annotation
 - **Clear**: Remove all annotations on current page
