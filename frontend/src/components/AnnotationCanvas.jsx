@@ -18,6 +18,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const isDrawingRef = useRef(false);
   const startPointRef = useRef(null);
   const tempObjectRef = useRef(null);
+  const drawPointsRef = useRef([]);
   const historyRef = useRef([]);
   const prevDimensionsRef = useRef({ width, height });
   const justExitedTextEditRef = useRef(false);
@@ -321,19 +322,11 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
 
     const canvas = fabricRef.current;
 
-    // Enable/disable free drawing mode based on active tool
-    canvas.isDrawingMode = activeTool === 'draw';
-    if (canvas.isDrawingMode) {
-      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.color = activeColor;
-      canvas.freeDrawingBrush.width = 2;
-    }
-
     const handleMouseDown = (opt) => {
       // Notify parent that this canvas is now active
       onFocusRef.current?.();
 
-      if (!activeTool || activeTool === 'select' || activeTool === 'draw') return;
+      if (!activeTool || activeTool === 'select') return;
 
       // Don't start drawing if clicking on an existing object (allow selection/resize)
       if (opt.target) return;
@@ -406,6 +399,10 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         isDrawingRef.current = false;
         // Don't save to history yet - wait for editing:exited event
       }
+
+      if (activeTool === 'draw') {
+        drawPointsRef.current = [pointer];
+      }
     };
 
     const handleMouseMove = (opt) => {
@@ -426,7 +423,32 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         canvas.remove(tempObjectRef.current);
       }
 
-      if (activeTool === 'arrow') {
+      if (activeTool === 'draw') {
+        drawPointsRef.current.push(pointer);
+        const points = drawPointsRef.current;
+
+        // Build SVG path string from collected points
+        let pathData = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) {
+          pathData += ` L ${points[i].x} ${points[i].y}`;
+        }
+
+        const path = new fabric.Path(pathData, {
+          stroke: activeColor,
+          strokeWidth: 2,
+          fill: 'transparent',
+          strokeLineCap: 'round',
+          strokeLineJoin: 'round',
+          selectable: false,
+          evented: false,
+          hasBorders: false,
+          hasControls: false,
+        });
+
+        tempObjectRef.current = path;
+        canvas.add(path);
+        canvas.discardActiveObject();
+      } else if (activeTool === 'arrow') {
         // Clamp arrow endpoint to keep it inside canvas
         const headLength = 15;
         const clampedEndX = Math.max(headLength / 2, Math.min(pointer.x, width - headLength / 2));
@@ -502,6 +524,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       isDrawingRef.current = false;
       const startPoint = startPointRef.current;
       startPointRef.current = null;
+      drawPointsRef.current = [];
 
       // Re-enable selection
       canvas.selection = true;
@@ -536,6 +559,17 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           const minRectSize = 10;
           if (obj.width < minRectSize && obj.height < minRectSize) {
             // Rectangle too small - remove it
+            canvas.remove(obj);
+            tempObjectRef.current = null;
+            canvas.requestRenderAll();
+            return;
+          }
+        }
+
+        // Check if free-drawn path is too small
+        if (obj.type === 'path') {
+          const bounds = obj.getBoundingRect();
+          if (bounds.width < 10 && bounds.height < 10) {
             canvas.remove(obj);
             tempObjectRef.current = null;
             canvas.requestRenderAll();
@@ -634,9 +668,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     };
     canvas.on('object:scaling', handleObjectScaling);
 
-    // Save when a free-drawn path is completed
-    canvas.on('path:created', saveToHistory);
-
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
 
@@ -656,13 +687,11 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     canvas.on('text:editing:exited', handleTextEditEnd);
 
     return () => {
-      canvas.isDrawingMode = false;
       canvas.off('mouse:down', handleMouseDown);
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
       canvas.off('object:moving', handleObjectMoving);
       canvas.off('object:scaling', handleObjectScaling);
-      canvas.off('path:created', saveToHistory);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
