@@ -668,41 +668,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     };
     canvas.on('object:scaling', handleObjectScaling);
 
-    // Show light bounding box on hover using the overlay context
-    let hoveredObj = null;
-    const handleMouseOver = (opt) => {
-      const obj = opt.target;
-      if (obj && !canvas.getActiveObjects().includes(obj)) {
-        hoveredObj = obj;
-        canvas.requestRenderAll();
-      }
-    };
-    const clearHoverOverlay = () => {
-      const ctx = canvas.contextTop;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    };
-    const handleMouseOut = () => {
-      if (hoveredObj) {
-        hoveredObj = null;
-        clearHoverOverlay();
-      }
-    };
-    const handleAfterRender = () => {
-      if (!hoveredObj || canvas.getActiveObjects().includes(hoveredObj)) return;
-      const ctx = canvas.contextTop;
-      clearHoverOverlay();
-      ctx.save();
-      const bounds = hoveredObj.getBoundingRect();
-      ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(bounds.left, bounds.top, bounds.width, bounds.height);
-      ctx.restore();
-    };
-    canvas.on('mouse:over', handleMouseOver);
-    canvas.on('mouse:out', handleMouseOut);
-    canvas.on('after:render', handleAfterRender);
-
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
 
@@ -727,9 +692,6 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('mouse:up', handleMouseUp);
       canvas.off('object:moving', handleObjectMoving);
       canvas.off('object:scaling', handleObjectScaling);
-      canvas.off('mouse:over', handleMouseOver);
-      canvas.off('mouse:out', handleMouseOut);
-      canvas.off('after:render', handleAfterRender);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
