@@ -677,15 +677,20 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
         canvas.requestRenderAll();
       }
     };
+    const clearHoverOverlay = () => {
+      const ctx = canvas.contextTop;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
     const handleMouseOut = () => {
       if (hoveredObj) {
         hoveredObj = null;
-        canvas.requestRenderAll();
+        clearHoverOverlay();
       }
     };
-    const handleAfterRender = (opt) => {
+    const handleAfterRender = () => {
       if (!hoveredObj || canvas.getActiveObjects().includes(hoveredObj)) return;
       const ctx = canvas.contextTop;
+      clearHoverOverlay();
       ctx.save();
       const bounds = hoveredObj.getBoundingRect();
       ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
