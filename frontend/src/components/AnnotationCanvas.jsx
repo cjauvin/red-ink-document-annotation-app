@@ -668,38 +668,35 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     };
     canvas.on('object:scaling', handleObjectScaling);
 
-    // Show light bounding box on hover
-    let hoverRect = null;
+    // Show light bounding box on hover using the overlay context
+    let hoveredObj = null;
     const handleMouseOver = (opt) => {
       const obj = opt.target;
       if (obj && !canvas.getActiveObjects().includes(obj)) {
-        const bounds = obj.getBoundingRect();
-        hoverRect = new fabric.Rect({
-          left: bounds.left,
-          top: bounds.top,
-          width: bounds.width,
-          height: bounds.height,
-          fill: 'transparent',
-          stroke: 'rgba(150, 150, 150, 0.4)',
-          strokeWidth: 1,
-          strokeDashArray: [4, 3],
-          selectable: false,
-          evented: false,
-          excludeFromExport: true,
-        });
-        canvas.add(hoverRect);
+        hoveredObj = obj;
         canvas.requestRenderAll();
       }
     };
     const handleMouseOut = () => {
-      if (hoverRect) {
-        canvas.remove(hoverRect);
-        hoverRect = null;
+      if (hoveredObj) {
+        hoveredObj = null;
         canvas.requestRenderAll();
       }
     };
+    const handleAfterRender = (opt) => {
+      if (!hoveredObj || canvas.getActiveObjects().includes(hoveredObj)) return;
+      const ctx = canvas.contextTop;
+      ctx.save();
+      const bounds = hoveredObj.getBoundingRect();
+      ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(bounds.left, bounds.top, bounds.width, bounds.height);
+      ctx.restore();
+    };
     canvas.on('mouse:over', handleMouseOver);
     canvas.on('mouse:out', handleMouseOut);
+    canvas.on('after:render', handleAfterRender);
 
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
@@ -727,6 +724,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('object:scaling', handleObjectScaling);
       canvas.off('mouse:over', handleMouseOver);
       canvas.off('mouse:out', handleMouseOut);
+      canvas.off('after:render', handleAfterRender);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
