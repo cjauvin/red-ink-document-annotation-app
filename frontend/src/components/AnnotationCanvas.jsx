@@ -668,6 +668,39 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     };
     canvas.on('object:scaling', handleObjectScaling);
 
+    // Show light bounding box on hover
+    let hoverRect = null;
+    const handleMouseOver = (opt) => {
+      const obj = opt.target;
+      if (obj && !canvas.getActiveObjects().includes(obj)) {
+        const bounds = obj.getBoundingRect();
+        hoverRect = new fabric.Rect({
+          left: bounds.left,
+          top: bounds.top,
+          width: bounds.width,
+          height: bounds.height,
+          fill: 'transparent',
+          stroke: 'rgba(150, 150, 150, 0.4)',
+          strokeWidth: 1,
+          strokeDashArray: [4, 3],
+          selectable: false,
+          evented: false,
+          excludeFromExport: true,
+        });
+        canvas.add(hoverRect);
+        canvas.requestRenderAll();
+      }
+    };
+    const handleMouseOut = () => {
+      if (hoverRect) {
+        canvas.remove(hoverRect);
+        hoverRect = null;
+        canvas.requestRenderAll();
+      }
+    };
+    canvas.on('mouse:over', handleMouseOver);
+    canvas.on('mouse:out', handleMouseOut);
+
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
 
@@ -692,6 +725,8 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('mouse:up', handleMouseUp);
       canvas.off('object:moving', handleObjectMoving);
       canvas.off('object:scaling', handleObjectScaling);
+      canvas.off('mouse:over', handleMouseOver);
+      canvas.off('mouse:out', handleMouseOut);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
     };
