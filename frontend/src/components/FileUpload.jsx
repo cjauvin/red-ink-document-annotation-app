@@ -17,14 +17,14 @@ export function FileUpload({ onUploadComplete, userId }) {
       return;
     }
 
-    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    const validExtensions = ['.pdf', '.docx'];
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    const validExtensions = ['.pdf', '.docx', '.doc'];
 
     const hasValidType = validTypes.includes(file.type);
     const hasValidExtension = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
 
     if (!hasValidType && !hasValidExtension) {
-      setError('Veuillez téléverser un fichier PDF ou DOCX');
+      setError('Veuillez téléverser un fichier PDF, DOCX ou DOC');
       return;
     }
 
@@ -128,12 +128,12 @@ export function FileUpload({ onUploadComplete, userId }) {
               <input
                 type="file"
                 className="hidden"
-                accept=".pdf,.docx"
+                accept=".pdf,.docx,.doc"
                 onChange={handleInputChange}
               />
             </label>
             <p className="text-gray-400 text-sm mt-2">
-              PDF ou DOCX jusqu'à 5 Mo
+              PDF, DOCX ou DOC jusqu'à 5 Mo
             </p>
           </>
         )}

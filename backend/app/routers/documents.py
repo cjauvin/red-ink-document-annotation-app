@@ -89,9 +89,11 @@ async def upload_document(
         original_type = "pdf"
     elif filename_lower.endswith(".docx"):
         original_type = "docx"
+    elif filename_lower.endswith(".doc"):
+        original_type = "doc"
     else:
         raise HTTPException(
-            status_code=400, detail="Only PDF and DOCX files are supported"
+            status_code=400, detail="Only PDF, DOCX, and DOC files are supported"
         )
 
     # Read and check file size
@@ -110,17 +112,17 @@ async def upload_document(
     with open(temp_path, "wb") as f:
         f.write(content)
 
-    # Convert DOCX to PDF if needed
-    if original_type == "docx":
+    # Convert DOCX/DOC to PDF if needed
+    if original_type in ("docx", "doc"):
         try:
             pdf_path = convert_docx_to_pdf(temp_path, UPLOADS_DIR)
-            # Remove the original DOCX file
+            # Remove the original file
             os.remove(temp_path)
             stored_filename = pdf_path.name
         except subprocess.CalledProcessError as e:
             os.remove(temp_path)
             raise HTTPException(
-                status_code=500, detail=f"Failed to convert DOCX to PDF: {e.stderr}"
+                status_code=500, detail=f"Failed to convert {original_type.upper()} to PDF: {e.stderr}"
             )
     else:
         stored_filename = temp_filename
