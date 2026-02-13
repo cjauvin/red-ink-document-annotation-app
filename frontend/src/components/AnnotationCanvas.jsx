@@ -67,6 +67,19 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       const effectiveScaleX = obj.scaleX || 1;
       const effectiveScaleY = obj.scaleY || 1;
 
+      // Images: keep intrinsic width/height, normalize scale separately
+      if (obj.type === 'image') {
+        return {
+          ...obj,
+          left: obj.left / width,
+          top: obj.top / height,
+          // Store scale as ratio of canvas dimensions
+          scaleX: (effectiveScaleX * obj.width) / width,
+          scaleY: (effectiveScaleY * obj.height) / height,
+          // width/height stay as intrinsic image dimensions (unchanged)
+        };
+      }
+
       const normalized = {
         ...obj,
         // Position as percentage of canvas dimensions
@@ -148,6 +161,19 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     if (!json || !json.objects || !targetWidth || !targetHeight) return json;
 
     const denormalizeObject = (obj) => {
+      // Images: restore scale from canvas-relative ratio, keep intrinsic dimensions
+      if (obj.type === 'image') {
+        return {
+          ...obj,
+          left: obj.left * targetWidth,
+          top: obj.top * targetHeight,
+          // Convert stored ratio back to actual scale
+          scaleX: (obj.scaleX * targetWidth) / obj.width,
+          scaleY: (obj.scaleY * targetHeight) / obj.height,
+          // width/height stay as intrinsic image dimensions (unchanged)
+        };
+      }
+
       const denormalized = {
         ...obj,
         // Convert percentages back to pixel coordinates
@@ -251,6 +277,17 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
           objects: currentJson.objects.map(obj => {
             const effectiveScaleX = obj.scaleX || 1;
             const effectiveScaleY = obj.scaleY || 1;
+
+            // Images: keep intrinsic dimensions, normalize scale separately
+            if (obj.type === 'image') {
+              return {
+                ...obj,
+                left: obj.left / prev.width,
+                top: obj.top / prev.height,
+                scaleX: (effectiveScaleX * obj.width) / prev.width,
+                scaleY: (effectiveScaleY * obj.height) / prev.height,
+              };
+            }
 
             const norm = {
               ...obj,
@@ -671,6 +708,47 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     // Save when objects are modified
     canvas.on('object:modified', saveToHistory);
 
+    // Handle paste to add images from clipboard
+    const handlePaste = (e) => {
+      if (!canvas || !isMountedRef.current) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const blob = item.getAsFile();
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target.result;
+            fabric.FabricImage.fromURL(dataUrl).then((img) => {
+              if (!isMountedRef.current || !fabricRef.current) return;
+
+              // Scale down to fit within 50% of canvas width
+              const maxWidth = width * 0.5;
+              const imgScale = img.width > maxWidth ? maxWidth / img.width : 1;
+
+              img.set({
+                left: width * 0.25,
+                top: height * 0.25,
+                scaleX: imgScale,
+                scaleY: imgScale,
+              });
+
+              fabricRef.current.add(img);
+              fabricRef.current.setActiveObject(img);
+              fabricRef.current.requestRenderAll();
+              saveToHistory();
+            });
+          };
+          reader.readAsDataURL(blob);
+          break; // Only handle the first image
+        }
+      }
+    };
+    document.addEventListener('paste', handlePaste);
+
     // Save when text editing is finished
     const handleTextEditEnd = (e) => {
       const textbox = e.target;
@@ -694,6 +772,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('object:scaling', handleObjectScaling);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
+      document.removeEventListener('paste', handlePaste);
     };
   }, [activeTool, activeColor, saveToHistory, readOnly, width, height, canvasReady]);
 
