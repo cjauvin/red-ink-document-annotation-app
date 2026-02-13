@@ -24,6 +24,7 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
   const justExitedTextEditRef = useRef(false);
   const onFocusRef = useRef(onFocus);
   const isMountedRef = useRef(true);
+  const lastPointerRef = useRef(null);
   const [canvasReady, setCanvasReady] = useState(false);
 
   // Track mounted state to prevent state updates after unmount
@@ -633,6 +634,15 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
     canvas.on('mouse:move', handleMouseMove);
     canvas.on('mouse:up', handleMouseUp);
 
+    // Track pointer position for paste-at-cursor
+    const handlePointerMove = (opt) => {
+      const pt = opt.scenePoint || opt.pointer;
+      if (pt) lastPointerRef.current = { x: pt.x, y: pt.y };
+    };
+    const handlePointerOut = () => { lastPointerRef.current = null; };
+    canvas.on('mouse:move', handlePointerMove);
+    canvas.on('mouse:out', handlePointerOut);
+
     // Constrain objects to canvas boundaries when moving
     const handleObjectMoving = (opt) => {
       const obj = opt.target;
@@ -729,9 +739,14 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
               const maxWidth = width * 0.5;
               const imgScale = img.width > maxWidth ? maxWidth / img.width : 1;
 
+              // Place at cursor position if available, otherwise center
+              const cursor = lastPointerRef.current;
+              const imgLeft = cursor ? cursor.x : width * 0.25;
+              const imgTop = cursor ? cursor.y : height * 0.25;
+
               img.set({
-                left: width * 0.25,
-                top: height * 0.25,
+                left: imgLeft,
+                top: imgTop,
                 scaleX: imgScale,
                 scaleY: imgScale,
               });
@@ -772,6 +787,8 @@ export const AnnotationCanvas = forwardRef(function AnnotationCanvas({
       canvas.off('object:scaling', handleObjectScaling);
       canvas.off('object:modified', saveToHistory);
       canvas.off('text:editing:exited', handleTextEditEnd);
+      canvas.off('mouse:move', handlePointerMove);
+      canvas.off('mouse:out', handlePointerOut);
       document.removeEventListener('paste', handlePaste);
     };
   }, [activeTool, activeColor, saveToHistory, readOnly, width, height, canvasReady]);
